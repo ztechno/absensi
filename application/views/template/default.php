@@ -203,6 +203,12 @@
                     </ul>
                 </div>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="<?=base_url('slideshow')?>">
+                <i class="ti-image menu-icon"></i>
+                <span class="menu-title">Slideshow</span>
+                </a>
+            </li>
             <?php endif ?>
           </ul>
         </div>

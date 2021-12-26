@@ -13,6 +13,13 @@ class Api extends CI_Controller {
         header("Access-Control-Allow-Headers: *");
 
     }
+
+    public function getSlideShow()
+    {
+        $slide = $this->db->get('tb_slideshow')->result_array();
+        echo json_encode($slide);
+        return;
+    }
     
     private function tokenData($token, $user_id){
         return $this->db->where('token', $token)
@@ -462,139 +469,51 @@ class Api extends CI_Controller {
     }
     private function _login($username, $password)
     {
+        $username    = $this->input->post('username');
+        $password    = $this->input->post('password');
 
-        $SIMPEG      = $this->load->database('otherdb', TRUE);
-        $user        = $SIMPEG->select('pegawai.*, skpd.id_skpd skpd_id, skpd.nama_skpd')
-                            ->join('skpd', 'skpd.id_skpd=pegawai.id_skpd', 'left')
-                            ->get_where('pegawai', ['nip' => $username, 'status_pegawai'=>'pegawai'])->row();
-
-        if(!$user) {
-            $this->_loginTKS($username, $password);
-            return;
-        }
-
-        $user_meta = $this->db->
-                            where('pegawai_id', $user->id_pegawai)->
-                            where('jenis_pegawai', 'pegawai')->
-                            get('tb_pegawai_meta')->
-                            row();
-        
-        $password_A = password_hash(123, PASSWORD_DEFAULT);
-
-        if (($user_meta && password_verify($password, $user_meta->nip == "199012042015051001" ? $password_A : $user_meta->password)) || (!$user_meta && password_verify($password, $user->password))){
-            
-        }else{
-			echo json_encode([
-				"status"	=> "gagal",
-				"pesan"		=> "Password Salah" 	  					
-			]);
-            return;
-        }
-        $website_id     = 1;
-        $access         = $this->db->where('website_id', $website_id)->where('user_id', $user->id_pegawai)->where('jenis_pegawai', 'pegawai')->get('tb_user_roled_website')->num_rows();
-        if($access==0){
-			echo json_encode([
-				"status"	=> "gagal",
-				"pesan"		=> "Tidak ada akses"	  					
-			]);
-            return;
-        }
-
-        $today = date("Y-m-d H:i:s");
-        $token = md5(strtotime($today) . "" . $user->id_pegawai);
-        $data = [
-            "token"                 => $token,
-            "user_id"               => $user->id_pegawai,
-            "start_token"           => $today,
-            "last_actived"          => $today,
-            'jenis_pegawai'         => 'pegawai',
-            "status"                => 1
-        ];
-        $this->db->insert('tb_token', $data);
-
-        $user->nama_pegawai = ($user->gelar_depan && $user->gelar_depan!="" ? $user->gelar_depan.". " : null).$user->nama_pegawai.($user->gelar_belakang && $user->gelar_belakang!="" ? ", ".$user->gelar_belakang : null);
-
-        $user_id        = $user->id_pegawai;
-        $website_id     = 1;
-        $role           = $this->db->select('tb_role.*')
-                                 ->where('tb_user_roled_website.website_id', $website_id)
-                                 ->where('tb_user_roled_website.user_id', $user_id)
-                                 ->where('tb_user_roled_website.jenis_pegawai', 'pegawai')
-                                 ->join('tb_role', 'tb_role.role_id=tb_user_roled_website.role_id', 'left')
-                                 ->get('tb_user_roled_website')->row();
-		
-								 
-								 
-								 // FROM ABSENSI ///////////////////////////////////////////
-        $ABSENSI                = $this->load->database('dbabsensi', TRUE);
-		$kordinat_default 		= $ABSENSI->select('tb_kordinat.skpd_id, tb_kordinat.latitude, tb_kordinat.longitude, tb_kordinat.radius')->where('tb_kordinat.skpd_id', $user->skpd_id)->get('tb_kordinat')->row_array();
-        $absensi_pegawai_meta   = $ABSENSI->get_where('tb_pegawai_meta', ['pegawai_id' => $user->id_pegawai])->row();
-    
-        $absensi_var['kordinat_bebas']  = isset($absensi_pegawai_meta->kordinat_bebas) && $absensi_pegawai_meta->kordinat_bebas ? ($absensi_pegawai_meta->kordinat_bebas=="Ya" ? $absensi_pegawai_meta->kordinat_bebas : null) : null;     
-        $absensi_var['kordinat_khusus'] = isset($absensi_pegawai_meta->kordinat_khusus) && $absensi_pegawai_meta->kordinat_khusus ? ($absensi_pegawai_meta->kordinat_khusus == "Ya" ? unserialize($absensi_pegawai_meta->kordinats) : null) : null;     
-        
-        if($absensi_var['kordinat_khusus']){
-            foreach($absensi_var['kordinat_khusus'] as $kordinat_khusus_id){
-                $ABSENSI->or_where('id', $kordinat_khusus_id);
+        $user        = $this->db->where('username',$username)->get('tb_users')->row();
+        if($user)
+        {
+            if($user->is_active != 'Ya')
+            {
+                echo json_encode(["status"=>"gagal","pesan"=>'Akun anda sedang di non aktifkan']);
+                return;
             }
-            $kordinats = $ABSENSI->select('
-                                            tb_kordinat_tambahan.nama_skpd, 
-                                            tb_kordinat_tambahan.nama_kordinat, 
-                                            tb_kordinat_tambahan.latitude, 
-                                            tb_kordinat_tambahan.longitude, 
-                                            tb_kordinat_tambahan.radius
-                                ')
-                                ->get('tb_kordinat_tambahan')->result_array();
-            $absensi_var['kordinat_khusus']  = count($kordinats)>0 ? $kordinats : null;
-        }else{
-			if($kordinat_default){
-				$kordinat_default['nama_skpd'] = "Default";
-				$kordinat_default['nama_kordinat'] = "Default";
-			}
-			$absensi_var['kordinat_khusus']  = $kordinat_default ? [$kordinat_default] :null;
-		}
 
-        $data = [
-            'user_id'       	=> $user->id_pegawai,
-            'nama'          	=> $user->nama_pegawai,
-            'username'      	=> $user->nip,
-            'jenis_pegawai' 	=> 'pegawai',
-            'role_id'       	=> $role->role_id,
-            'roles'         	=> [],
-			'nomor_wa'			=> isset($user_meta->no_hp) ? $user_meta->no_hp : null,   
-            'absensi_variables' => $absensi_var,
-            'skpd_id'       	=> $user->skpd_id,
-            'nama_opd'      	=> $user->nama_skpd,
-            'start_token'   	=> $today,
-            'token'         	=> $token
-        ];
-        $this->session->set_userdata($data);
+            if(password_verify($password, $user->password))
+            {
+                $roles = $this->db->select('tb_roles.nama')
+                        ->where('tb_user_roles.user_id',$user->id)
+                        ->join('tb_roles','tb_roles.id=tb_user_roles.role_id')
+                        ->get('tb_user_roles')->row();
+                $all_roles = [];
+                foreach($roles as $role)
+                    $all_roles[] = $role;
+                $user  = (array) $user;
+                unset($user['password']);
+                $user['roles'] = $all_roles;
+                $pegawai = $this->db->where('user_id',$user['id'])->get('tb_pegawai')->row();
+                $opd = $this->db->where('id',$pegawai->opd_id)->get('tb_opd')->row();
+                $user['pegawai'] = (array) $pegawai;
+                $user['opd'] = (array) $opd;
 
-        $roles_data          = $this->db->select('tb_user_roled_website.role_id, tb_websites.domain')
-                                ->where('user_id', $user->id_pegawai)
-                                ->where('jenis_pegawai', 'pegawai')
-                                ->join('tb_websites','tb_websites.id=tb_user_roled_website.website_id', 'left')
-                                ->get('tb_user_roled_website')->result();
-        $roles = array();
-        foreach($roles_data as $role){
-            $role      = [
-                "domain"    => $role->domain,
-                "role_id"   => $role->role_id  
-            ];
-            $roles[] = $role;
+                $key = "123aaaa321";
+                $data = JWT::encode($user, $key);
+                echo json_encode(["status"=>"berhasil","data"=>$data]);
+                return;
+            }
+            else
+            {
+                echo json_encode(["status"=>"gagal","pesan"=>'Password tidak valid!']);
+                return;
+            }
         }
-        $data['roles']  = $roles;
-        unset($data['role_id']);
-        $key = "123aaaa321";
-        $data = JWT::encode($data, $key);
-        
-        $cookie_name = "labura_layanan_app_token";
-        $cookie_value = $data;
-        setcookie($cookie_name, $cookie_value, time()+(30*24*3600), "/", ".labura.go.id"); // 86400 = 1 Month
-		echo json_encode([
-			"status"	=> "berhasil",
-			"data"		=> $data	  					
-		]);
+        else
+        {
+            echo json_encode(["status"=>"gagal","pesan"=>'User tidak ditemukan!']);
+            return;
+        }
         return;
 
     }
