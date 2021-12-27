@@ -9,7 +9,7 @@ class Izin_model extends CI_Model
     {
         parent::__construct();
         date_default_timezone_set("Asia/Jakarta");
-        $this->load->model(['Pegawai_model','Sms_model', 'Notifikasi_model', 'Shortener_model']);
+        $this->load->model(['Pegawai_model','Sms_model']);
     }
 
     public function getAllIzin()
@@ -26,93 +26,50 @@ class Izin_model extends CI_Model
 
     public function addDataIzin()
     {
-        $pegawai_id     = $this->session->userdata('user_id');
-        $jenis_pegawai  = $this->session->userdata('jenis_pegawai');
-    
+        $pegawai_id     = $this->session->userdata('id');
 
         if($_FILES['lampiran']['name']){
             $data       = file_get_contents($_FILES['lampiran']['tmp_name']);
             $fileData   = $data;
-            $fileName   = 'izin_kerja/'.date("Y/F").'/'.$_SESSION['username'].'/'.time()."_".$_FILES['lampiran']['name'];
+            $fileName   = './izin_kerja/'.date("Y/F").'/'.$_SESSION['username'].'/';
+            @mkdir($fileName, 775, true);
+
+            $config['upload_path']          = $fileName;
+            $config['allowed_types']        = 'gif|jpg|png';
+            $config['max_size']             = 100;
+            $config['max_width']            = 1024;
+            $config['max_height']           = 768;
+            $config['file_name']            = time();
+            $this->load->library('upload', $config);
+
+            if (!$this->upload->do_upload('lampiran')) return array(false, $this->upload->display_errors());
+            $urlFile = $fileName.$this->upload->data()['file_name'];
 
         }else if(isset($_POST['file_izin']) && $_POST['file_izin']){
             $img        = $_POST['file_izin'];
             $img        = str_replace('data:image/jpeg;base64,', '', $img);
             $img        = str_replace(' ', '+', $img);
             $fileData   = base64_decode($img);
-            $fileName   = 'izin_kerja/'.date("Y/F").'/'.$_SESSION['username'].'/'.time().".jpg";
+
+            $fileName   = './izin_kerja/'.date("Y/F").'/'.$_SESSION['username'].'/';
+            @mkdir($fileName, 775, true);
+            $fileName   = $fileName.time().".jpg";
+            $data       = file_put_contents($fileName, $fileData);
+            $urlFile    = $fileName;
         }
 
-        if(!isset($fileData)){
-            return array(false, "Gagal mengajukan izin kerja!");
-        }
+        if(!isset($fileData)) return array(false, "Gagal mengajukan izin kerja!");
 
-        # Your Google Cloud Platform project ID
-        $projectId = 'absensi-325704';
-
-        # Instantiates a client
-        $storage = new StorageClient([
-            'projectId' => $projectId
-        ]);
-
-        # The name for the new bucket
-        $bucketName = 'file-absensi';
-
-        # Creates the new bucket
-        $bucket = $storage->bucket($bucketName);
-
-        $jam = date("Y-m-d H:i:s");
-        $options = [
-            'resumable' => true,
-            'name' => $fileName,
-            'metadata' => [
-                'contentLanguage' => 'en'
-            ]
-        ];
-        $object = $bucket->upload(
-            $fileData,
-            $options
-        );
-
-        $urlFile = str_replace(" ","%20", "https://storage.googleapis.com/file-absensi/".$fileName);
-        $dataMeta = [
+        $access_key         = rand(90000,99999)."-".substr(md5(time()), 0, 7);
+        $data = [
+            "pegawai_id"    => $pegawai_id,
             "tanggal_awal"  => date("Y-m-d", strtotime($this->input->post('tanggal_awal', true))),
             "tanggal_akhir" => $_POST['tanggal_akhir'] == "" ? date("Y-m-d", strtotime($this->input->post('tanggal_awal', true))) : date("Y-m-d", strtotime($this->input->post('tanggal_akhir', true))),
             "jenis_izin"    => $this->input->post('jenis_izin', true),
             "file_izin"     => $urlFile,
-            "user_id"       => $this->session->userdata('user_id')
-        ];
-        $this->db->insert('tb_izin_kerja_meta', $dataMeta);
-        $meta_id = $this->db->insert_id();
-
-        $access_key         = rand(90000,99999)."-".substr(md5(time()), 0, 7);
-
-        $data = [
-            "meta_id"       => $meta_id,
-            "pegawai_id"    => $pegawai_id,
-            "jenis_pegawai" => $jenis_pegawai,
-            "nama_pegawai"  => $this->session->userdata('nama'),
-            "skpd_id"       => $this->session->userdata('skpd_id'),
-            "nama_opd"      => $this->session->userdata('nama_skpd'),
             "access_key"    => $access_key, 
         ];
         $this->db->insert('tb_izin_kerja', $data);
-
-        $pegawai            = $this->Pegawai_model->getPegawaiAtasan($pegawai_id, $jenis_pegawai);
-
-        if(isset($pegawai['nama_pegawai'])){
-            // $pesan          = "*[ABSENSI-NG]*\n\nAda permohonan izin *".$this->input->post('jenis_izin', true)."* dari *".$pegawai['nama_pegawai']."*.\n\n*Lampiran Izin :*\n".$urlFile."\n\n*Setujui dengan tap link ini :*\n".base_url('byaccesskey/setujuiizinkerja/'.$meta_id."/".$access_key)."\n\n*Tolak dengan tap link ini:*\n".base_url('byaccesskey/tolakizinkerja/'.$meta_id."/".$access_key);
-            // $this->Sms_model->send($pegawai['no_hp_pegawai_atasan'], $pesan);
-            $url            = $this->Shortener_model->buaturl(base_url('byaccesskey/izinkerja/'.$meta_id."/".$access_key));
-            $pesan          = "[ABSENSI-NG] Ada permohonan izin ".$this->input->post('jenis_izin', true)." dari ".$pegawai['nama_pegawai'].". Konfirmasi melalui link ini : ".$url;
-            $this->Notifikasi_model->send(array(
-                          'user_id'         => $pegawai['pegawai_atasan_id'],
-                          'jenis_user'      => $pegawai['jenis_pegawai_atasan'],
-                          'user_name'       => $pegawai['nama_pegawai_atasan'],
-                          'contents'        => $pesan,
-                    ));
-        }
-
         return array(true, "Izin Kerja baru telah ditambahkan, silahkan tunggu verifikasi selanjutnya!");
     }
     

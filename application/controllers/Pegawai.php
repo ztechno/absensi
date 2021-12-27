@@ -98,6 +98,57 @@ class Pegawai extends CI_Controller {
         ]);
     }
 
+    function edit($id)
+    {
+
+        $pegawai = $this->db->select('tb_pegawai.*, tb_users.*, tb_pegawai.id')->where('tb_pegawai.id', $id)->join('tb_users', 'tb_users.id=tb_pegawai.user_id', 'left')->get('tb_pegawai')->row();
+        if(!$pegawai) redirect('pegawai');
+        if(isset($_POST['pegawai']))
+        {
+            $_POST['user']['nama'] = $_POST['pegawai']['nama'];
+            if(isset($_POST['user']['password']) && $_POST['user']['password']) 
+            {
+                $_POST['user']['password'] = password_hash($_POST['user']['password'],PASSWORD_DEFAULT);
+            }if(isset($_POST['user']['password'])){
+                unset($_POST['user']['password']);
+            }
+            $this->db->where('id', $pegawai->user_id)->update('tb_users',$_POST['user']);
+
+            $pic  = $_FILES['pegawai']; //['name']['foto'];
+            $ext  = pathinfo($pic['name']['foto'], PATHINFO_EXTENSION);
+            $name = strtotime('now').'.'.$ext;
+            $file = 'foto/'.$name;
+            copy($pic['tmp_name']['foto'],$file);
+            $_POST['pegawai']['foto'] = $file;
+            $this->db->where('id', $id)->update('tb_pegawai',$_POST['pegawai']);
+
+            if(!empty($_POST['detection']))
+            {
+                $detection = 'var employee_sample='.$_POST['detection'];
+                file_put_contents('facesamples/sample-'.$user_id.'.js',$detection);
+            }
+
+            $this->session->set_flashdata('pesan', '
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>Berhasil !</strong> Data Pegawai berhasil diubah
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            ');
+            redirect('pegawai');
+        }
+
+        $opds = $this->db->get('tb_opd')->result();
+        $this->load->view('template/default', [
+            'title'   => 'Ubah Pegawai',
+            'page'    => 'pegawai/form',
+            'pegawai' => $pegawai,
+            'opds'    => $opds
+        ]);
+    }
+
+
     function hapus($id)
     {
         $this->db->delete('tb_pegawai',['id'=>$id]);
@@ -110,5 +161,12 @@ class Pegawai extends CI_Controller {
             </div>
             ');
         redirect('pegawai');
+    }
+
+    public function optionPegawai(){
+        echo '<option value="">Pilih Pegawai</option>';
+        foreach($this->db->where('opd_id', $_POST['opd_id'])->get('tb_pegawai')->result() as $pegawai){
+            echo '<option value="'.$pegawai->id.'">'.$pegawai->nama.'</option>';
+        }
     }
 }
