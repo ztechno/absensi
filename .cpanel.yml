@@ -1,6 +1,5 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/ztechno/
+    - export DEPLOYPATH=/home/ztechno/public_html
     - /bin/cp -a * $DEPLOYPATH
-    - /bin/cp -r public/. /home/ztechno/public_html
