@@ -26,10 +26,9 @@ class Auth extends CI_Controller {
         if ($this->form_validation->run() == false) {
             $this->load->view('auth', $data);
             return;
-        }else{
-            $this->_login();
-            return;
         }
+        $this->_login();
+        return;
     }
 
 	public function lupapassword()
@@ -365,6 +364,7 @@ class Auth extends CI_Controller {
                 Maaf! Akun anda sedang di nonaktifkan</div>
                 ');
                 redirect('auth');
+                return;
             }
 
             if(password_verify($password, $user->password))
@@ -403,214 +403,6 @@ class Auth extends CI_Controller {
         return;
     }
 
-
-    private function _loginTKS($username, $password)
-    {
-
-        $SIMPEG      = $this->load->database('otherdb', TRUE);
-        $user        = $SIMPEG->select('tb_pegawai_tks.*, skpd.id_skpd skpd_id, skpd.nama_skpd')
-                            ->where('tb_pegawai_tks.nik', $username)
-                            ->join('skpd', 'skpd.id_skpd=tb_pegawai_tks.skpd_id', 'left')
-                            ->get('tb_pegawai_tks')
-                            ->row();
-
-
-        if ($user) {
-            $user_meta = $this->db->
-                                where('pegawai_id', $user->id)->
-                                where('jenis_pegawai', 'tks')->
-                                get('tb_pegawai_meta')->
-                                row();
-    
-            if (($user_meta && password_verify($password, $user_meta->password)) || (!$user_meta && password_verify($password, $user->password))){
-                
-            }else{
-                $this->session->set_flashdata('pesan', '
-                <div class="alert alert-danger" role="alert">
-                <button type="button" class="close" data-dismiss="alert">x</button>
-                Password Salah!</div>
-                ');
-                redirect('auth');
-                return;
-            }
-            $website_id     = 1;
-            $access         = $this->db->where('website_id', $website_id)->where('user_id', $user->id)->where('jenis_pegawai', 'tks')->get('tb_user_roled_website')->num_rows();
-            if($access==0){
-                $this->session->set_flashdata('pesan', '
-                <div class="alert alert-danger" role="alert">
-                    <button type="button" class="close" data-dismiss="alert">x</button>
-                    <strong>Maaf !</strong> User tidak punya akses untuk aplikasi ini!
-                </div>');
-                redirect('auth');
-                return;                
-                
-            }
-
-            $today = date("Y-m-d H:i:s");
-            $token = md5(strtotime($today) . "" . $user->id);
-            $data = [
-                "token"                 => $token,
-                "user_id"               => $user->id,
-                "start_token"           => $today,
-                "last_actived"          => $today,
-                'jenis_pegawai'         => 'tks',
-                "status"                => 1
-            ];
-            $this->db->insert('tb_token', $data);
-
-            $user_id        = $user->id;
-            $role = $this->db->select('tb_role.*')
-                                     ->where('tb_user_roled_website.website_id', $website_id)
-                                     ->where('tb_user_roled_website.user_id', $user_id)
-                                     ->where('tb_user_roled_website.jenis_pegawai', 'tks')
-                                     ->join('tb_role', 'tb_role.role_id=tb_user_roled_website.role_id', 'left')
-                                     ->get('tb_user_roled_website')->row();
-
-            $data = [
-                'user_id'       => $user->id,
-                'nama'          => $user->nama_tks,
-                'role_id'       => $role->role_id,
-                'username'      => $user->nik,
-                'roles'         => [],
-                'skpd_id'       => $user->skpd_id,
-                'nama_opd'      => $user->nama_skpd,
-                'start_token'   => $today,
-                'jenis_pegawai' => 'tks',
-                "jenis_user"    => 'tks',
-                'token'         => $token
-            ];
-            $this->session->set_userdata($data);
-
-            $roles_data          = $this->db->select('tb_user_roled_website.role_id, tb_websites.domain')
-                                    ->where('user_id', $user->id)
-                                    ->where('jenis_pegawai', 'tks')
-                                    ->join('tb_websites','tb_websites.id=tb_user_roled_website.website_id', 'left')
-                                    ->get('tb_user_roled_website')->result();
-            $roles = array();
-            foreach($roles_data as $role){
-                $role      = [
-                    "domain"    => $role->domain,
-                    "role_id"   => $role->role_id  
-                ];
-                $roles[] = $role;
-            }
-            $data['roles']  = $roles;
-
-            $key = "123aaaa321";
-            $data = JWT::encode($data, $key);
-            
-            $cookie_name = "labura_layanan_app_token";
-            $cookie_value = $data;
-            setcookie($cookie_name, $cookie_value, time()+(30*24*3600), '/',".labura.go.id"); // 86400 = 1 Month
-
-            redirect('home?token=' . $token);
-            return;
-
-        } 
-        
-        $this->_loginMasyarakat($username, $password);
-    
-    }
-
-    private function _loginMasyarakat($username, $password){
-        
-        $user        = $this->db->where('username', $username)->where('jenis', 'masyarakat')->get('tb_users')->row();
-
-        if ($user && password_verify($password, $user->password)) {
-            $website_id     = 1;
-            $user_id        = $user->user_id;
-            $role           = $this->db->select('tb_role.*')
-                                       ->where('tb_user_roled_website.website_id', $website_id)
-                                       ->where('tb_user_roled_website.user_id', $user_id)
-                                       ->where('tb_user_roled_website.jenis_pegawai', 'masyarakat')
-                                       ->join('tb_role', 'tb_role.role_id=tb_user_roled_website.role_id', 'left')
-                                       ->get('tb_user_roled_website')->row();
-
-            if(!$role){
-                $this->session->set_flashdata('pesan', '
-                <div class="alert alert-danger" role="alert">
-                    <button type="button" class="close" data-dismiss="alert">x</button>
-                    <strong>Maaf !</strong> User tidak punya akses untuk aplikasi ini!
-                </div>');
-                redirect('auth');
-                return;                
-                
-            }
-
-            $today = date("Y-m-d H:i:s");
-            $token = md5(strtotime($today) . "" . $user->id);
-            $data = [
-                "token"                 => $token,
-                "user_id"               => $user->user_id,
-                "jenis_pegawai"         => 'masyarakat',
-                "start_token"           => $today,
-                "last_actived"          => $today,
-                "status"                => 1
-            ];
-            $this->db->insert('tb_token', $data);
-
-
-            $data = [
-                'user_id'       => $user->id,
-                'nama'          => $user->nama,
-                'role_id'       => $role->role_id,
-                'username'      => $user->username,
-                'roles'         => [],
-                'skpd_id'       => null,
-                'nama_opd'      => null,
-                'start_token'   => $today,
-                'jenis_pegawai' => 'masyarakat',
-                "jenis_user"    => 'masyarakat',
-                'token'         => $token
-            ];
-            $this->session->set_userdata($data);
-
-            $roles_data          = $this->db->select('tb_user_roled_website.role_id, tb_websites.domain')
-                                    ->where('user_id', $user_id)
-                                    ->where('jenis_pegawai', 'masyarakat')
-                                    ->join('tb_websites','tb_websites.id=tb_user_roled_website.website_id', 'left')
-                                    ->get('tb_user_roled_website')->result();
-            $roles = array();
-            foreach($roles_data as $role){
-                $role      = [
-                    "domain"    => $role->domain,
-                    "role_id"   => $role->role_id  
-                ];
-                $roles[] = $role;
-            }
-            $data['roles']  = $roles;
-
-            $key = "123aaaa321";
-            $data = JWT::encode($data, $key);
-            
-            $cookie_name = "labura_layanan_app_token";
-            $cookie_value = $data;
-            setcookie($cookie_name, $cookie_value, time()+(30*24*3600), '/',".labura.go.id"); // 86400 = 1 Month
-
-            redirect('home?token=' . $token);
-            return;
-
-        }else if ($user && !password_verify($password, $user->password)) {
-            $this->session->set_flashdata('pesan', '
-                <div class="alert alert-danger" role="alert">
-                    <button type="button" class="close" data-dismiss="alert">x</button>Password Salah!
-                </div>
-            ');
-            redirect('auth');
-            return;
-
-        }
-        
-        $alert = '<div class="alert alert-danger" id="finish-alert">
-                    <button type="button" class="close" data-dismiss="alert">x</button>
-                    <strong id="alert_judul">Gagal Masuk</strong> <br /><span id="alert_deskripsi">NIP/NIK tidak ada</span>
-                </div>';
-
-        $this->session->set_flashdata('pesan', $alert);
-        redirect('auth');
-        return;
-
-    }
 
 	public function regetSession(){
 		if(!isset($_COOKIE['labura_layanan_app_token'])){

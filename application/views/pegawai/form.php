@@ -11,17 +11,17 @@
                             <input type="hidden" name="detection">
                             <div class="form-group">
                                 <label for="">NIP</label>
-                                <input type="tel" class="form-control" placeholder="Masukan NIP" name="pegawai[nip]">
+                                <input type="tel" class="form-control" placeholder="Masukan NIP" value="<?=isset($pegawai->nip) ? $pegawai->nip : null;?>" name="pegawai[nip]">
                                 <?= form_error('pegawai[nip]', '<small class="text-danger pl-2">', '</small>'); ?>
                             </div>
                             <div class="form-group">
                                 <label for="">Nama</label>
-                                <input type="text" class="form-control" placeholder="Masukan Nama" name="pegawai[nama]">
+                                <input type="text" class="form-control" placeholder="Masukan Nama" value="<?=isset($pegawai->nama) ? $pegawai->nama : null;?>" name="pegawai[nama]">
                                 <?= form_error('pegawai[nama]', '<small class="text-danger pl-2">', '</small>'); ?>
                             </div>
                             <div class="form-group">
                                 <label for="">Jabatan</label>
-                                <input type="text" class="form-control" placeholder="Masukan Jabatan" name="pegawai[jabatan]">
+                                <input type="text" class="form-control" placeholder="Masukan Jabatan" value="<?=isset($pegawai->jabatan) ? $pegawai->jabatan : null;?>" name="pegawai[jabatan]">
                                 <?= form_error('pegawai[jabatan]', '<small class="text-danger pl-2">', '</small>'); ?>
                             </div>
                             <div class="form-group">
@@ -29,7 +29,7 @@
                                 <select name="pegawai[opd_id]" class="form-control">
                                     <option value="">- Pilih -</option>
                                     <?php foreach($opds as $opd): ?>
-                                    <option value="<?=$opd->id?>"><?=$opd->nama_opd?></option>
+                                    <option value="<?=$opd->id?>" <?=isset($pegawai->opd_id) && $pegawai->opd_id==$opd->id ? "selected" : null;?>><?=$opd->nama_opd?></option>
                                     <?php endforeach ?>
                                 </select>
                                 <?= form_error('pegawai[jenis_pegawai]', '<small class="text-danger pl-2">', '</small>'); ?>
@@ -45,26 +45,26 @@
                             <div class="form-group">
                                 <label for="">Apakah Pegawai Seorang Kepala OPD ?</label>
                                 <br>
-                                <input type="radio" name="pegawai[kepala]" value="1" id=""> Ya &nbsp;
-                                <input type="radio" name="pegawai[kepala]" value="0" id="" checked> Tidak
+                                <input type="radio" name="pegawai[kepala]" value="1" id="" <?=isset($pegawai->kepala) && $pegawai->kepala==1 ? "checked" : null;?>> Ya &nbsp;
+                                <input type="radio" name="pegawai[kepala]" value="0" id="" <?=(isset($pegawai->kepala) && $pegawai->kepala==0) || !isset($pegawai->kepala) ? "checked" : null;?>> Tidak
                             </div>
                             <div class="form-group">
                                 <label for="">Apakah Pegawai Seorang CPNS ?</label>
                                 <br>
-                                <input type="radio" name="pegawai[cpns]" value="1" id=""> Ya &nbsp;
-                                <input type="radio" name="pegawai[cpns]" value="0" id="" checked> Tidak
+                                <input type="radio" name="pegawai[cpns]" value="1" id="" <?=isset($pegawai->cpns) && $pegawai->cpns==1 ? "checked" : null;?>> Ya &nbsp;
+                                <input type="radio" name="pegawai[cpns]" value="0" id="" <?=(isset($pegawai->cpns) && $pegawai->cpns==0) || !isset($pegawai->cpns) ? "checked" : null;?>> Tidak
                             </div>
                             <div class="form-group">
                                 <label for="">Apakah Pegawai Seorang PLT ?</label>
                                 <br>
-                                <input type="radio" name="pegawai[plt]" value="1" id=""> Ya &nbsp;
-                                <input type="radio" name="pegawai[plt]" value="0" id="" checked> Tidak
+                                <input type="radio" name="pegawai[plt]" value="1" id="" <?=isset($pegawai->plt) && $pegawai->plt==1 ? "checked" : null;?>> Ya &nbsp;
+                                <input type="radio" name="pegawai[plt]" value="0" id="" <?=(isset($pegawai->plt) && $pegawai->plt==0) || !isset($pegawai->plt) ? "checked" : null;?>> Tidak
                             </div>
                             <div class="form-group">
                                 <label for="">Apakah Pegawai Seorang Bendahara ?</label>
                                 <br>
-                                <input type="radio" name="pegawai[bendahara]" value="1" id=""> Ya &nbsp;
-                                <input type="radio" name="pegawai[bendahara]" value="0" id="" checked> Tidak
+                                <input type="radio" name="pegawai[bendahara]" value="1" id="" <?=isset($pegawai->bendahara) && $pegawai->bendahara==1 ? "checked" : null;?>> Ya &nbsp;
+                                <input type="radio" name="pegawai[bendahara]" value="0" id="" <?=(isset($pegawai->bendahara) && $pegawai->bendahara==0) || !isset($pegawai->bendahara) ? "checked" : null;?>> Tidak
                             </div>
                             <div class="form-group">
                                 <label for="">Foto</label>
@@ -77,7 +77,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="">Username</label>
-                                <input type="text" class="form-control" placeholder="Masukan Username" name="user[username]">
+                                <input type="text" class="form-control" placeholder="Masukan Username" value="<?=isset($pegawai->username) ? $pegawai->username : null;?>" name="user[username]">
                                 <?= form_error('user[username]', '<small class="text-danger pl-2">', '</small>'); ?>
                             </div>
                             <div class="form-group">

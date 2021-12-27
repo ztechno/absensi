@@ -15,8 +15,6 @@ class Absensi extends CI_Controller {
             'LogAbsen_model',
             'Pegawai_model',
             'Skpd_model',
-            'Sms_model',
-            'Notifikasi_model',
             'Unitkerja_model',
             'AbsenManual_model'
         ]);
@@ -27,7 +25,7 @@ class Absensi extends CI_Controller {
         $data = [
 		    "title"             => "Absensi Harian Pegawai",
 			"page"				=> "absensi/absensiharian",
-			"skpd"              => $this->session->userdata('role_id')==1 || $this->session->userdata('role_id')==2 ? $this->Skpd_model->getSkpd() : $this->Unitkerja_model->get($this->session->userdata('skpd_id')),
+			"skpd"              => $this->session->userdata('role_id')==1 || $this->session->userdata('role_id')==2 ? $this->Skpd_model->get() : $this->Skpd_model->get($this->session->userdata('skpd_id')),
 			"javascript"		=> [
 				base_url("assets/vendors/datatables.net/jquery.dataTables.js"),
 				base_url("assets/vendors/datatables.net-bs4/dataTables.bootstrap4.js"),
@@ -449,9 +447,8 @@ class Absensi extends CI_Controller {
 
     public function getAbsensiHarianPegawai(){
         if (!isset($_POST['tanggal']) || 
-            !isset($_POST['jenis_pegawai']) || 
-            $_POST['tanggal'] == "" || 
-            $_POST['jenis_pegawai'] == "") {
+            !isset($_POST['skpd_id']) || 
+            $_POST['tanggal'] == "") {
 
             echo json_encode(["data"=>array()]);
             return;
@@ -459,35 +456,23 @@ class Absensi extends CI_Controller {
         
         extract($_POST);
         
-        $akses           = [1,2,3,7];
-        $skpd_id         = in_array($this->session->userdata('role_id'), $akses) ? $_POST['skpd_id'] : $this->session->userdata('skpd_id');
-        $tanggal         = date("Y-m-d", strtotime($_POST['tanggal']));
-        
-        $datas = array();
-
-        $pegawai = $jenis_pegawai == 'pegawai' ? $this->Pegawai_model->getPegawai(null, $skpd_id) : $this->Pegawai_model->getPegawaiTks(null, $skpd_id) ;
-
-        array_multisort(array_column($pegawai, 'nama'), SORT_ASC, $pegawai);
-
-
-        $no=1;
+        $opd_id     = $_POST['skpd_id'];
+        $tanggal    = date("Y-m-d", strtotime($_POST['tanggal']));
+        $datas      = array();
+        $pegawai    = $this->db->where('opd_id', $opd_id)->order_by('nama', 'desc')->get('tb_pegawai')->result();
+        $no         = 1;
         foreach ($pegawai as $pg) {
             $izinKerja = $this->db
-                            ->select('tb_izin_kerja.*, tb_izin_kerja_meta.*')
-                            ->where('tb_izin_kerja.pegawai_id', $pg['user_id'])
-                            ->where('tb_izin_kerja.jenis_pegawai', $jenis_pegawai)
+                            ->where('tb_izin_kerja.pegawai_id', $pg->id)
                             ->group_start()
-                                ->where("tb_izin_kerja_meta.tanggal_awal<=", $tanggal)
-                                ->where("tb_izin_kerja_meta.tanggal_akhir>=", $tanggal)
+                                ->where("tb_izin_kerja.tanggal_awal<=", $tanggal)
+                                ->where("tb_izin_kerja.tanggal_akhir>=", $tanggal)
                             ->group_end()
                             ->where("tb_izin_kerja.status", 1)
-                            ->join('tb_izin_kerja_meta', 'tb_izin_kerja_meta.id=tb_izin_kerja.meta_id', 'left')
                             ->get('tb_izin_kerja')->row_array();
             
             $absensi = $this->db
-                            ->where('pegawai_id', $pg['user_id'])
-                            ->where('jenis_pegawai', $jenis_pegawai)
-                            // ->where('skpd_id', $skpd_id)
+                            ->where('pegawai_id', $pg->id)
                             ->where("DATE_FORMAT(jam,'%Y-%m-%d')", $tanggal)
                             ->where('status', 1)
                             ->order_by('id', 'asc')
@@ -503,7 +488,7 @@ class Absensi extends CI_Controller {
             $isAbsenManualIstirahat         = null;
             $isAbsenManualSelesiIstirahat   = null;
 
-            $jamKerjaPegawai    = $this->jamKerjaPegawai($pg['user_id'], $jenis_pegawai, $tanggal);
+            $jamKerjaPegawai    = $this->jamKerjaPegawai($pg->id, $tanggal);
             
             foreach($absensi as $abs){
                 if($abs->is_susulan=='Ya' && $abs->jenis_absen=='Absen Masuk'){
@@ -529,7 +514,7 @@ class Absensi extends CI_Controller {
                 }
 
                 $labels             = array();
-                $jam                = $this->getJamAbsen($abs->jam, $abs->pegawai_id, $abs->jenis_pegawai, $abs->jenis_absen, $jamKerjaPegawai);
+                $jam                = $this->getJamAbsen($abs->jam, $pg->id, $abs->jenis_absen, $jamKerjaPegawai);
 
                 if(isset($jam['label'])) $labels[] = $jam['label'];
                 if($abs->jenis_absen == 'Absen Upacara' && isset($upacaralibur->kategori)) $labels[] = $upacaralibur->kategori;
@@ -541,20 +526,18 @@ class Absensi extends CI_Controller {
                 }
                 $label = null;
 
-                $isAbsenManualMasuk             = !$jam_masuk && $abs->jenis_absen=="Absen Masuk" && $abs->keterangan ? "<small>AMP (".$abs->keterangan.")<div style='margin-top: 2px; padding-top: 3px;'>Disetujui oleh :<br><strong>".$abs->approved_by_nama."</strong></div></small>" : null;
-                $isAbsenManualPulang            = !$jam_pulang && $abs->jenis_absen=="Absen Pulang" && $abs->keterangan ? "<small>AMS (".$abs->keterangan.")<div style='margin-top: 2px; padding-top: 3px;'>Disetujui oleh :<br><strong>".$abs->approved_by_nama."</strong></div></small>" : null;
-                $isAbsenManualIstirahat         = !$jam_istirahat_masuk && $abs->jenis_absen=="Absen Istirahat" && $abs->keterangan ? "<small>AMI (".$abs->keterangan.")<div style='margin-top: 2px; padding-top: 3px;'>Disetujui oleh :<br><strong>".$abs->approved_by_nama."</strong></div></small>" : null;
-                $isAbsenManualSelesiIstirahat   = !$jam_istirahat_keluar && $abs->jenis_absen=="Absen Selesai" && $abs->keterangan ? "<small>AMSI (".$abs->keterangan.")<div style='margin-top: 2px; padding-top: 3px;'>Disetujui oleh :<br><strong>".$abs->approved_by_nama."</strong></div></small>" : null;
+                $isAbsenManualMasuk             = !$jam_masuk && $abs->jenis_absen=="Absen Masuk" && $abs->keterangan ? "<small>AMP (".$abs->keterangan.")" : null;
+                $isAbsenManualPulang            = !$jam_pulang && $abs->jenis_absen=="Absen Pulang" && $abs->keterangan ? "<small>AMS (".$abs->keterangan.")" : null;
+                $isAbsenManualIstirahat         = !$jam_istirahat_masuk && $abs->jenis_absen=="Absen Istirahat" && $abs->keterangan ? "<small>AMI (".$abs->keterangan.")" : null;
+                $isAbsenManualSelesiIstirahat   = !$jam_istirahat_keluar && $abs->jenis_absen=="Absen Selesai" && $abs->keterangan ? "<small>AMSI (".$abs->keterangan.")" : null;
 
-                $jam_masuk              = isset($jam['jam_masuk']) && (!$jam_masuk || $jam['jam_masuk']=="Upacara" ||  $jam['jam_masuk']=="Senam") ? "<span class='mb-show'>Masuk</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $pg['username'] . "/" . $abs->jam.".png'>".$jam['jam_masuk']."</a>".$label : $jam_masuk;
-                $jam_istirahat_masuk    = isset($jam['jam_istirahat']) && !$jam_istirahat_masuk ? "<span class='mb-show'>Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $pg['username'] . "/" . $abs->jam.".png'>".$jam['jam_istirahat']."</a>".$label : $jam_istirahat_masuk;
-                $jam_istirahat_keluar   = isset($jam['jam_selesai_istirahat']) && !$jam_istirahat_keluar ? "<span class='mb-show'>Selesai Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $pg['username'] . "/" . $abs->jam.".png'>".$jam['jam_selesai_istirahat']."</a>".$label : $jam_istirahat_keluar;
-                $jam_pulang             = isset($jam['jam_pulang']) && !$jam_pulang ? "<span class='mb-show'>Pulang</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $pg['username'] . "/" . $abs->jam.".png'>".$jam['jam_pulang']."</a>".$label : $jam_pulang;
+                $jam_masuk              = isset($jam['jam_masuk']) && (!$jam_masuk || $jam['jam_masuk']=="Upacara" ||  $jam['jam_masuk']=="Senam") ? "<span class='mb-show'>Masuk</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_masuk']."</a>".$label : $jam_masuk;
+                $jam_istirahat_masuk    = isset($jam['jam_istirahat']) && !$jam_istirahat_masuk ? "<span class='mb-show'>Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_istirahat']."</a>".$label : $jam_istirahat_masuk;
+                $jam_istirahat_keluar   = isset($jam['jam_selesai_istirahat']) && !$jam_istirahat_keluar ? "<span class='mb-show'>Selesai Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_selesai_istirahat']."</a>".$label : $jam_istirahat_keluar;
+                $jam_pulang             = isset($jam['jam_pulang']) && !$jam_pulang ? "<span class='mb-show'>Pulang</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_pulang']."</a>".$label : $jam_pulang;
             }
-            $gelarDepan      = isset($pg['gelar_depan']) && $pg['gelar_depan'] && $pg['gelar_depan']!=="" ? $pg['gelar_depan']."." : null;
-            $gelarBelakang   = isset($pg['gelar_belakang']) && $pg['gelar_belakang'] && $pg['gelar_belakang']!="" ? " ".$pg['gelar_belakang'] : null;
   
-            $nama = "<div class='tb-wrap'>".$gelarDepan.$pg['nama'].$gelarBelakang."</div>"
+            $nama = "<div class='tb-wrap'>".$pg->nama."</div>"
                             .($jamKerjaPegawai ? "<div style='margin-top: 7px; font-size: 12px' class='tb-wrap text-primary'>".$jamKerjaPegawai['nama_jam_kerja']."</div>" :null);
             $returnJam  = $izinKerja ? 
                             "<div class='col-md-4 tb-wrap text-center'><strong>".$izinKerja['jenis_izin']."</strong></div>".
@@ -577,42 +560,30 @@ class Absensi extends CI_Controller {
         echo json_encode(array("data" => $datas));
     }
 
-    private function jamKerjaPegawai($pegawai_id, $jenis_pegawai, $tanggal){
+    private function jamKerjaPegawai($pegawai_id, $tanggal){
         return $this->db->
                         select('tb_jam_kerja_pegawai.*, tb_jam_kerja.nama_jam_kerja')->
                         where('pegawai_id', $pegawai_id)->
-                        where('jenis_pegawai', $jenis_pegawai)->
                         where('tanggal', date("Y-m-d", strtotime($tanggal)))->
                         join('tb_jam_kerja', 'tb_jam_kerja.id=tb_jam_kerja_pegawai.jam_kerja_id', 'left')->
                         get('tb_jam_kerja_pegawai')->row_array();
 
     }
 
-    private function getJamAbsen($tanggal, $pegawai_id, $jenis_pegawai, $jenis_absen, $jamKerjaPegawai){
+    private function getJamAbsen($tanggal, $pegawai_id, $jenis_absen, $jamKerjaPegawai){
         
-        
-
         $now                = strtotime($tanggal);
-
-        
-
         $jam_kerja  = $jamKerjaPegawai ? 
                             $this->db
-                               ->where('jam_kerja_id', $jamKerjaPegawai['jam_kerja_id'])
-                               ->group_start()
-                                   ->where('hari', date('N', $now))
-                                   ->or_where('hari', 0)
-                               ->group_end()
-                               ->get('tb_jam_kerja_meta')
+                               ->where('id', $jamKerjaPegawai['jam_kerja_id'])
+                               ->get('tb_jam_kerja_new')
                                ->row() : 
                             $this->db
                                ->where('jam_kerja_id', 1)
                                ->where('hari', date('N', $now))
                                ->get('tb_jam_kerja_meta')
                                ->row();
-                               
-
-                               
+                                  
         if(!$jam_kerja) return [];
 
                                

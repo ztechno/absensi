@@ -22,15 +22,11 @@ class Pengaturan extends CI_Controller
 
     public function getTableJamKerjaPegawai(){
         if (isset($_POST['bulan']) && $_POST['bulan'] !="") {
-            $pegawai_id      = isset($_POST['pegawai_id']) ? $_POST['pegawai_id'] : $this->session->userdata('user_id'); 
-            $jenis_pegawai   = isset($_POST['jenis_pegawai']) ? $_POST['pegawai_id'] : $this->session->userdata('jenis_pegawai'); 
-            $skpd_id         = isset($_POST['skpd_id']) ? $_POST['skpd_id'] : $this->session->userdata('skpd_id'); 
-            
+            $pegawai_id      = isset($_POST['pegawai_id']) ? $_POST['pegawai_id'] : $this->session->userdata('id');             
             $jamKerja        = $this->db->where('deleted', null)->order_by('nama_jam_kerja', 'asc')->get('tb_jam_kerja')->result();
             
             $akses           = [1,2,3];
-            $pegawai_id      =  in_array($this->session->userdata('role_id'), $akses) ? $_POST['pegawai_id'] : $this->session->userdata('user_id');
-            $jenis_pegawai   =  in_array($this->session->userdata('role_id'), $akses) ? $_POST['jenis_pegawai'] : $this->session->userdata('jenis_pegawai');
+            $pegawai_id      =  in_array($this->session->userdata('role_id'), $akses) ? $_POST['pegawai_id'] : $this->session->userdata('id');
 
             $begin = new DateTime(date("01-m-Y", strtotime("01-".$_POST['bulan'])));
             $end = new DateTime(date("t-m-Y", strtotime("01-".$_POST['bulan'])));
@@ -271,12 +267,8 @@ class Pengaturan extends CI_Controller
     public function aturjamkerjapegawai()
     {
         $this->form_validation->set_rules('pegawai_id', 'Pegawai', 'required');
-        $this->form_validation->set_rules('jenis_pegawai', 'Jenis Pegawai', 'required');
 		if($this->form_validation->run()){
             if(isset($_POST['jam_kerja_pegawai'])){
-                // echo "<pre>";
-                // print_r($_POST);
-                // return;
                 extract($_POST);
                 foreach($jam_kerja_pegawai as $tanggal=>$jkp){
                     $jam_kerja_pegawai = $this->db-> 
@@ -427,32 +419,29 @@ class Pengaturan extends CI_Controller
     public function aturjamkerjapegawainew()
     {
         $this->form_validation->set_rules('pegawai_id', 'Pegawai', 'required');
-        $this->form_validation->set_rules('jenis_pegawai', 'Jenis Pegawai', 'required');
         if($this->form_validation->run()){
             if(isset($_POST['jam_kerja_pegawai'])){
                 extract($_POST);
                 foreach($jam_kerja_pegawai as $tanggal=>$jkp){
                     $jam_kerja_pegawai = $this->db-> 
                                 where('pegawai_id', $pegawai_id)->
-                                where('jenis_pegawai', $jenis_pegawai)->
                                 where('tanggal', $tanggal)->
-                                get('tb_jam_kerja_pegawai_new')->row();
+                                get('tb_jam_kerja_pegawai')->row();
 
                     if($jam_kerja_pegawai) {
-                        $this->db->where('id', $jam_kerja_pegawai->id)->delete('tb_jam_kerja_pegawai_new');
+                        $this->db->where('id', $jam_kerja_pegawai->id)->delete('tb_jam_kerja_pegawai');
                     }
 
                     if(!$jkp || $jkp=="Default") continue;
                     
                     $data = [
                         "pegawai_id"        => $pegawai_id,
-                        "jenis_pegawai"     => $jenis_pegawai,
                         "tanggal"           => $tanggal,
                         "jam_kerja_id"      => $jkp=="Libur" ? null : $jkp
                     ];
 
                     if($jkp){
-                        $this->db->insert('tb_jam_kerja_pegawai_new', $data);
+                        $this->db->insert('tb_jam_kerja_pegawai', $data);
                     }
         
                 }
@@ -484,28 +473,15 @@ class Pengaturan extends CI_Controller
 
     public function getTableJamKerjaPegawaiNew(){
         if (isset($_POST['bulan']) && $_POST['bulan'] !="") {
-            $pegawai_id      = isset($_POST['pegawai_id']) ? $_POST['pegawai_id'] : $this->session->userdata('user_id'); 
-            $jenis_pegawai   = isset($_POST['jenis_pegawai']) ? $_POST['pegawai_id'] : $this->session->userdata('jenis_pegawai'); 
-            $skpd_id         = isset($_POST['skpd_id']) ? $_POST['skpd_id'] : $this->session->userdata('skpd_id'); 
-            
-            $opd             = $this->Opd_model->get($skpd_id);
-            if($opd){
-                $this->db->group_start()
-                         ->where('opd_id', $opd['opd_id'])
-                         ->or_where('opd_id', null)
-                         ->group_end();
-            }else{
-                $this->db->group_start()
-                         ->where('opd_id', $this->session->userdata('skpd_id'))
-                         ->or_where('opd_id', null)
-                         ->group_end();
-            }
+            $pegawai_id      = $_POST['pegawai_id']; 
+            $pegawai         = $this->db->where('id', $pegawai_id)->get('tb_pegawai')->row();
+
+            $this->db->group_start()
+                        ->where('opd_id', $pegawai->opd_id)
+                        ->or_where('opd_id', null)
+                        ->group_end();
             $jamKerja        = $this->db->where('deleted', null)->get('tb_jam_kerja_new')->result();
             
-            $akses           = [1,2,3];
-            $pegawai_id      =  in_array($this->session->userdata('role_id'), $akses) ? $_POST['pegawai_id'] : $this->session->userdata('user_id');
-            $jenis_pegawai   =  in_array($this->session->userdata('role_id'), $akses) ? $_POST['jenis_pegawai'] : $this->session->userdata('jenis_pegawai');
-
             $begin = new DateTime(date("01-m-Y", strtotime("01-".$_POST['bulan'])));
             $end = new DateTime(date("t-m-Y", strtotime("01-".$_POST['bulan'])));
             $end->modify('+1 day');
@@ -513,13 +489,11 @@ class Pengaturan extends CI_Controller
             $period = new DatePeriod($begin, $interval, $end);
             $no = 1;
 
-
             foreach ($period as $dt) {
                 $jamKerjaPegawai        = $this->db->
                                             where('pegawai_id', $pegawai_id)->
-                                            where('jenis_pegawai', $jenis_pegawai)->
                                             where('tanggal', $dt->format('Y-m-d'))->
-                                            get('tb_jam_kerja_pegawai_new')->row();
+                                            get('tb_jam_kerja_pegawai')->row();
                 $dt_sekarang = $dt->format('Y-m-d');
                 $opt = '<select class="jamPegawaiSelect2" name="jam_kerja_pegawai['.$dt_sekarang.']">';
                     $opt.='<option value="Default" '.(!$jamKerjaPegawai ? "selected" : null).'>Default</option>';

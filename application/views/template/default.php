@@ -95,6 +95,82 @@
     .btn-kotak {
         border-radius: 5px !important;
     }
+    .mb-show{
+    display: none;
+}
+.mb-hide{
+    display: block;
+}
+.mb-show-flex{
+    display: none;
+}
+.mb-hide-flex{
+    display: flex;
+}
+.haritanggal{
+    width: 250px;
+}
+
+@media (max-width: 1320px) {
+    .labura-modal-content {
+        margin: auto;
+        width: 90%;
+    }
+
+    .card-modal {
+        height: 650px;
+    }
+
+}
+
+@media (max-width: 1000px) {
+    .labura-modal-content {
+        margin: auto;
+        width: 90%;
+    }
+
+    .card-modal {
+        height: 600px;
+    }
+
+}
+
+@media (max-width: 780px) {
+    .mb-strong{
+        font-weight: 700;
+    }
+
+    .mb-show{
+        display: block;
+    }
+    .mb-hide{
+        display: none;
+    }
+    .mb-show-flex{
+        display: flex;
+    }
+    .mb-hide-flex{
+        display: none;
+    }
+    .haritanggal{
+        width: 125px;
+    }
+    .main-panel {
+        background: #ffffff;
+    }
+}
+@media (max-width: 700px) {
+    .labura-modal-content {
+        margin: auto;
+        width: 98%;
+    }
+
+    .card-modal {
+        height: 600px;
+    }
+
+}
+
 </style>
 </head>
 

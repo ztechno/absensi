@@ -29,8 +29,8 @@
                                     <div style="margin-top: 6px; font-style: italic;"><small><?=$jam_kerja['nama_opd'];?></small></div>
                                 </td>
                                 <td class="text-center">
-                                    <a href="pengaturan/setjamkerjanew/<?=$jam_kerja['id'];?>" class="btn btn-primary"><em class="ti-settings"></em> SET</a>
-                                    <a href="pengaturan/hapusjamkerjanew/<?=$jam_kerja['id'];?>" onclick="if(!confirm('Apakah anda yakin untuk menghapus ?')){return false;}" class="btn btn-danger"><em class="ti-trash"></em> HAPUS</a>
+                                    <a href="pengaturan/setjamkerjanew/<?=$jam_kerja['id'];?>" class="btn btn-primary"><em class="ti-settings"></em></a>
+                                    <a href="pengaturan/hapusjamkerjanew/<?=$jam_kerja['id'];?>" onclick="if(!confirm('Apakah anda yakin untuk menghapus ?')){return false;}" class="btn btn-danger"><em class="ti-trash"></em></a>
                                 </td>
                             </tr>
                         <?php endforeach;?>

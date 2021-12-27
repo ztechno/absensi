@@ -17,8 +17,7 @@
                     </div>
                 </div>
                 <?php
-                $akses = [1,2,3,7];
-                if(in_array($this->session->userdata('role_id'), $akses)):
+                    if(in_array('Admin', auth()->roles) || in_array('Operator OPD',auth()->roles)):
                 ?>
                 <div class="row mb-3">
                     <div class="col-md-2 pt-2">Unit Kerja</div>
@@ -26,28 +25,17 @@
                         <div class="form-group mb-0">
                             <select id="skpd_id" name="skpd_id" class="form-control select2">
                                 <option value="">Pilih Unit Kerja</option>
-                                <?php foreach ($skpd as $s) {
-									$s['skpd_id'] = isset($s['skpd_id']) ? $s['skpd_id'] : $s['id_skpd'];									
+                                <?php 
+                                    $opds = $this->db->order_by('nama_opd', 'asc')->get('tb_opd')->result();
+                                    foreach ($opds as $s) {
 								?>
-                                    <option value="<?= $s['skpd_id']; ?>"><?= $s['nama_skpd']; ?></option>
+                                    <option value="<?= $s->id; ?>"><?= $s->nama_opd; ?></option>
                                 <?php } ?>
                             </select>
                         </div>
                     </div>
                 </div>
                 <?php endif;?>
-                <div class="row mb-3">
-                    <div class="col-md-2 pt-2">Jenis Pegawai</div>
-                    <div class="col-md-10">
-                        <div class="form-group mb-0">
-                            <select id="jenis_pegawai" name="jenis_pegawai" class="form-control select2">
-                                <option value="">Pilih Jenis Pegawai</option>
-                                <option value="pegawai">PNS</option>
-                                <option value="tks">TKS</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
     
                 <div class="row">
                     <div class="col-md-12"><button id="btnFilter" class="btn btn-outline-primary btn-sm" disabled>Tampilkan</button></div>
@@ -89,8 +77,7 @@
         
         function validateForm(){
             var skpd_id          = $("#skpd_id").val();
-            var jenis_pegawai    = $("#jenis_pegawai").val();
-            if(skpd_id=="" || jenis_pegawai==""){
+            if(skpd_id==""){
                 $('#btnFilter').prop('disabled', true);
                 return false;
             }
@@ -99,9 +86,6 @@
             return true;
         }
         
-        $('#jenis_pegawai').change(function(){
-            validateForm();
-        });
         $('#skpd_id').change(function(){
             validateForm();
         });
@@ -113,7 +97,6 @@
         function filter() {
             var tanggal          = $("#tanggal").val();
             var skpd_id          = $("#skpd_id").val();
-            var jenis_pegawai    = $("#jenis_pegawai").val();
 
             $('#tableLogAbsen').DataTable().destroy();
             $('#tableLogAbsen').DataTable({
@@ -122,12 +105,11 @@
                 ordering    : false,
                 paging      : false,
                 ajax: {
-                    url     : "<?php echo base_url('absensi/getAbsensiHarianPegawai?token=' . $_GET['token']) ?>",
+                    url     : "<?php echo base_url('absensi/getAbsensiHarianPegawai') ?>",
                     type    : "POST",
                     data    : {
                         tanggal         : tanggal,
                         skpd_id         : skpd_id,
-                        jenis_pegawai   : jenis_pegawai
                     }
 
                 },

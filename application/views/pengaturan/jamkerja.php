@@ -26,8 +26,8 @@
                             <tr>
                                 <td class="text-left"><?=$jam_kerja['nama_jam_kerja'];?><?= $jam_kerja['is_default'] == 1 ? '<br><small class="text-primary">Default</small>' : null;?></td>
                                 <td class="text-center">
-                                    <a href="pengaturan/setjamkerja/<?=$jam_kerja['id'];?>" class="btn btn-primary"><em class="ti-settings"></em> SET</a>
-                                    <a href="pengaturan/hapusjamkerja/<?=$jam_kerja['id'];?>" onclick="if(!confirm('Apakah anda yakin untuk menghapus ?')){return false;}" class="btn btn-danger"><em class="ti-trash"></em> HAPUS</a>
+                                    <a href="pengaturan/setjamkerja/<?=$jam_kerja['id'];?>" class="btn btn-primary"><em class="ti-settings"></em></a>
+                                    <a href="pengaturan/hapusjamkerja/<?=$jam_kerja['id'];?>" onclick="if(!confirm('Apakah anda yakin untuk menghapus ?')){return false;}" class="btn btn-danger"><em class="ti-trash"></em></a>
                                 </td>
                             </tr>
                         <?php endforeach;?>

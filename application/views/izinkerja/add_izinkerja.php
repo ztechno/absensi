@@ -155,7 +155,7 @@ button#btn-ambil {
                 </li>
                 <li class="list-group-item">
                     <button type="submit" id="btnSubmit" class="btn btn-sm btn-primary" disabled><em class="ti-save"></em> Simpan</button>
-                    <a href="<?=base_url('izinkerja/dataizinkerja?token='.$_GET['token']);?>" class="btn btn-sm btn-danger"><em class="ti-arrow-left"></em> Kembali</a>
+                    <a href="<?=base_url('izinkerja/dataizinkerja');?>" class="btn btn-sm btn-danger"><em class="ti-arrow-left"></em> Kembali</a>
                 </li>
                 </form>
             </ul>
@@ -309,7 +309,7 @@ $("#skpd_id").change(function() {
     var skpd_id = $("#skpd_id").val();
     $.ajax({
         type: "post",
-        url: "<?= base_url() . '/json/selectOptionPegawaiBySkpd?token=' . $_GET['token']; ?>",
+        url: "<?= base_url() . '/json/selectOptionPegawaiBySkpd'; ?>",
         data: "skpd_id=" + skpd_id,
         success: function(data) {
             $("#pegawai_id").html(data);
@@ -317,7 +317,7 @@ $("#skpd_id").change(function() {
     });
     $.ajax({
         type: "post",
-        url: "<?= base_url() . '/json/selectOptionTksBySkpd?token=' . $_GET['token']; ?>",
+        url: "<?= base_url() . '/json/selectOptionTksBySkpd'; ?>",
         data: "skpd_id=" + skpd_id,
         success: function(data) {
             $("#tks_id").html(data);
@@ -347,7 +347,7 @@ function checkDataIzin() {
 
     $.ajax({
         type: "POST",
-        url: "<?= base_url('/izinkerja/cekIzin?token='.$_GET['token']); ?>",
+        url: "<?= base_url('/izinkerja/cekIzin'); ?>",
         data: {
             "tanggal_awal"  : tanggal_awal,
             "tanggal_akhir" : tanggal_akhir,
