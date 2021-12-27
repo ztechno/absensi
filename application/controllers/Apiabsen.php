@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Api extends CI_Controller {
+class Apiabsen extends CI_Controller {
     public $hari = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jum'at", "Sabtu"];
     public $bulan = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
@@ -9,16 +9,16 @@ class Api extends CI_Controller {
         parent::__construct();
 		date_default_timezone_set("Asia/Jakarta");
 		
-		$this->load->model([
-            'LogAbsen_model',
-            'Pegawai_model',
-            'Notifikasi_model',
-            'Shortener_model',
-            'Sms_model',
-            'Skpd_model',
-            'Hitung_model',
-            'AbsenManual_model'
-		]);
+		// $this->load->model([
+        //     'LogAbsen_model',
+        //     'Pegawai_model',
+        //     'Notifikasi_model',
+        //     'Shortener_model',
+        //     'Sms_model',
+        //     'Skpd_model',
+        //     'Hitung_model',
+        //     'AbsenManual_model'
+		// ]);
 		
 		header("Access-Control-Allow-Origin: *");
 		header("Access-Control-Allow-Methods: *");
@@ -927,15 +927,16 @@ class Api extends CI_Controller {
         if($_FILES['lampiran']['name']){
             $data       = file_get_contents($_FILES['lampiran']['tmp_name']);
             $fileData   = $data;
-            $fileName   = 'izin_kerja/'.date("Y/F").'/'.($_POST['username'] ? $_POST['username'] : $_POST['jenis_pegawai']."-".$_POST['pegawai_id']).'/'.time()."_".$_FILES['lampiran']['name'];
-
+            $fileName   = 'izin_kerja/'.$_POST['pegawai_id'].'-'.time()."_".$_FILES['lampiran']['name'];
         }else if(isset($_POST['file_izin']) && $_POST['file_izin']){
             $img        = $_POST['file_izin'];
             $img        = str_replace('data:image/jpeg;base64,', '', $img);
             $img        = str_replace(' ', '+', $img);
             $fileData   = base64_decode($img);
-            $fileName   = 'izin_kerja/'.date("Y/F").'/'.($_POST['username'] ? $_POST['username'] : $_POST['jenis_pegawai']."-".$_POST['pegawai_id']).'/'.time().".jpg";
+            $fileName   = 'izin_kerja/'.$_POST['pegawai_id'].'-'.time().".jpg";
         }
+        
+        file_put_contents($fileName, $fileData);
 
         if(!isset($fileData)){
             echo json_encode([
@@ -944,59 +945,12 @@ class Api extends CI_Controller {
             ]);
             return;
         }
-        
-        $pegawais       = $jenis_pegawai == 'pegawai' ? $this->Pegawai_model->getPegawai($pegawai_id) : $this->Pegawai_model->getPegawaiTks($pegawai_id) ;
-        $pegawai        = isset($pegawais[0]) ? $pegawais[0] : array();
-        if(!$pegawai){
-            echo json_encode([
-                "status"    => "gagal",
-                "pesan"     => "Gagal mengajukan izin kerja, data anda tidak valid mohon hubungi kami di telegram @egovlabura !",
-            ]);
-            return;
-        }
 
-        $gelarDepan     = isset($pegawai['gelar_depan']) && $pegawai['gelar_depan'] && $pegawai['gelar_depan']!=="" ? $pegawai['gelar_depan']."." : null;
-        $gelarBelakang  = isset($pegawai['gelar_belakang']) && $pegawai['gelar_belakang'] && $pegawai['gelar_belakang']!="" ? " ".$pegawai['gelar_belakang'] : null;
-        $nama_pegawai   = $gelarDepan.$pegawai['nama'].$gelarBelakang;
-        $skpd_id        = $pegawai['skpd_id'];
-        $nama_skpd      = $pegawai['nama_skpd'];
-
-
-        # Your Google Cloud Platform project ID
-        $projectId = 'absensi-325704';
-
-        # Instantiates a client
-        $storage = new StorageClient([
-            'projectId' => $projectId
-        ]);
-
-        # The name for the new bucket
-        $bucketName = 'file-absensi';
-
-        # Creates the new bucket
-        $bucket = $storage->bucket($bucketName);
-
-        $jam = date("Y-m-d H:i:s");
-        $options = [
-            'resumable' => true,
-            'name' => $fileName,
-            'metadata' => [
-                'contentLanguage' => 'en'
-            ]
-        ];
-        $object = $bucket->upload(
-            $fileData,
-            $options
-        );
-        
-        $this->Pegawai_model->getPegawai();        
-
-        $urlFile = str_replace(" ","%20", "https://storage.googleapis.com/file-absensi/".$fileName);
         $dataMeta = [
             "tanggal_awal"  => date("Y-m-d", strtotime($this->input->post('tanggal_awal', true))),
             "tanggal_akhir" => $_POST['tanggal_akhir'] == "" ? date("Y-m-d", strtotime($this->input->post('tanggal_awal', true))) : date("Y-m-d", strtotime($this->input->post('tanggal_akhir', true))),
             "jenis_izin"    => $jenis_izin,
-            "file_izin"     => $urlFile,
+            "file_izin"     => $fileName,
             "user_id"       => $pegawai_id
         ];
         $this->db->insert('tb_izin_kerja_meta', $dataMeta);
@@ -1015,23 +969,23 @@ class Api extends CI_Controller {
         ];
         $this->db->insert('tb_izin_kerja', $data);
 
-        $pegawai            = $this->Pegawai_model->getPegawaiAtasan($pegawai_id, $jenis_pegawai);
+        // $pegawai            = $this->Pegawai_model->getPegawaiAtasan($pegawai_id, $jenis_pegawai);
 
-        if(isset($pegawai['nama_pegawai'])){
-            // $pesan          = "*[ABSENSI-NG]*\n\nAda permohonan izin *".$this->input->post('jenis_izin', true)."* dari *".$pegawai['nama_pegawai']."*.\n\n*Lampiran Izin :*\n".$urlFile."\n\n*Setujui dengan tap link ini :*\n".base_url('byaccesskey/setujuiizinkerja/'.$meta_id."/".$access_key)."\n\n*Tolak dengan tap link ini:*\n".base_url('byaccesskey/tolakizinkerja/'.$meta_id."/".$access_key);
-            // $this->Sms_model->send($pegawai['no_hp_pegawai_atasan'], $pesan);
+        // if(isset($pegawai['nama_pegawai'])){
+        //     // $pesan          = "*[ABSENSI-NG]*\n\nAda permohonan izin *".$this->input->post('jenis_izin', true)."* dari *".$pegawai['nama_pegawai']."*.\n\n*Lampiran Izin :*\n".$urlFile."\n\n*Setujui dengan tap link ini :*\n".base_url('byaccesskey/setujuiizinkerja/'.$meta_id."/".$access_key)."\n\n*Tolak dengan tap link ini:*\n".base_url('byaccesskey/tolakizinkerja/'.$meta_id."/".$access_key);
+        //     // $this->Sms_model->send($pegawai['no_hp_pegawai_atasan'], $pesan);
             
-            $url            = $this->Shortener_model->buaturl(base_url('byaccesskey/izinkerja/'.$meta_id."/".$access_key));
-            $pesan          = "[ABSENSI-NG] Ada permohonan izin ".$this->input->post('jenis_izin', true)." dari ".$pegawai['nama_pegawai'].". Konfirmasi melalui link ini : ".$url;
-            $this->Notifikasi_model->send(array(
-                          'user_id'         => $pegawai['pegawai_atasan_id'],
-                          'jenis_user'      => $pegawai['jenis_pegawai_atasan'],
-                          'user_name'       => $pegawai['nama_pegawai_atasan'],
-                          'contents'        => $pesan,
-                          'url'             => "https://layanan.labura.go.id",
-                    ));
+        //     $url            = $this->Shortener_model->buaturl(base_url('byaccesskey/izinkerja/'.$meta_id."/".$access_key));
+        //     $pesan          = "[ABSENSI-NG] Ada permohonan izin ".$this->input->post('jenis_izin', true)." dari ".$pegawai['nama_pegawai'].". Konfirmasi melalui link ini : ".$url;
+        //     $this->Notifikasi_model->send(array(
+        //                   'user_id'         => $pegawai['pegawai_atasan_id'],
+        //                   'jenis_user'      => $pegawai['jenis_pegawai_atasan'],
+        //                   'user_name'       => $pegawai['nama_pegawai_atasan'],
+        //                   'contents'        => $pesan,
+        //                   'url'             => "https://layanan.labura.go.id",
+        //             ));
 
-        }
+        // }
 
         echo json_encode([
             "status"    => "berhasil",
