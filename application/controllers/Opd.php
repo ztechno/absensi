@@ -74,7 +74,7 @@ class Opd extends CI_Controller {
             </button>
           </div>
            ');
-         redirect('opd?token=' . $_GET['token']);
+         redirect('opd');
       }
     }
     
@@ -121,7 +121,7 @@ class Opd extends CI_Controller {
             </button>
           </div>
            ');
-         redirect('opd?token=' . $_GET['token']);
+         redirect('opd');
       }
     }
     
@@ -141,7 +141,7 @@ class Opd extends CI_Controller {
         </button>
       </div>
        ');
-      redirect('opd?token=' . $_GET['token']);
+      redirect('opd');
     }
 
 
