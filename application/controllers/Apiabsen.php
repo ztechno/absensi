@@ -252,6 +252,49 @@ class Apiabsen extends CI_Controller {
         
         return false;        
 	}
+
+    /*
+    Method Name : saveAbsen
+    Route : /apiabsen/saveAbsen
+    HTTP Method : POST
+    Body : 
+        pegawai_id : int
+        opd_id : int
+        jenis_absen : string
+        keterangan : string | nullable
+        file_absensi : base64
+    */
+    public function saveAbsen(){
+        $jam = date("Y-m-d H:i:s");
+        $img = $_POST['file_absensi'];
+        $img = str_replace('data:image/jpeg;base64,', '', $img);
+        $img = str_replace(' ', '+', $img);
+		$fileData = base64_decode($img);
+        $file_absensi = 'file_absen/'.strtotime('now').'.png';
+        file_put_contents($file_absensi,$fileData);
+
+        $access_key         = rand(90000,99999)."-".substr(md5(time()), 0, 7);
+        $this->db->insert("tb_absensi", [
+            "pegawai_id"       => $_POST['pegawai_id'],
+            "opd_id"           => $_POST['opd_id'],
+            "jam"              => $jam,
+            "jenis_absen"      => $_POST['jenis_absen'],
+            "keterangan"       => isset($_POST['keterangan']) && $_POST['keterangan'] ? $_POST['keterangan'] : null,
+            "status"           => isset($_POST['keterangan']) && $_POST['keterangan'] ? null : 1,
+            "access_key"       => isset($_POST['keterangan']) && $_POST['keterangan'] ? $access_key : null,
+            "file_absensi"     => $file_absensi
+        ]);
+
+        $id = $this->db->insert_id();
+        $tanggal_berhasil = date('j F Y, H:i');
+        echo json_encode([
+            'status'            => 'success',
+            'id'                => $id,
+            'message'           => 'Absensi berhasil',
+            'tanggal'           => $tanggal_berhasil
+        ]);
+        return;
+    }
 	
 	/*
 	Method Name : pushAbsen
@@ -806,10 +849,32 @@ class Apiabsen extends CI_Controller {
             (isset($_POST['status']) && $_POST['status'] && ($_POST['status'] != "menunggu" && $_POST['status'] != "disetujui" && $_POST['status'] != "ditolak"))
         ) { echo json_encode(["status" => "gagal", "data" => null]); return; }
         
-        $lists          = $is_bawahan ? $this->queryIzinKerjaNew('bawahan') : $this->queryIzinKerjaNew('saya');
+        // $lists          = $is_bawahan ? $this->queryIzinKerjaNew('bawahan') : $this->queryIzinKerjaNew('saya');
+        $lists = [];
+        if($is_bawahan)
+        {
+            $bawahan = $this->db->where('pegawai_atasan_id',$pegawai_id)->get('tb_pegawai_atasan')->result_array();
+            $bawahan_ids = [];
+            foreach($bawahan as $b)
+                $bawahan_ids[] = $b['pegawai_id'];
+            $this->db->select('tb_izin_kerja.*, tb_pegawai.nama as nama_pegawai, tb_opd.id as skpd_id, tb_opd.nama_opd as nama_skpd')->where_in('tb_izin_kerja.pegawai_id',$bawahan_ids);
+            if(isset($bulan))
+                $this->db->like('tb_izin_kerja.tanggal_awal',$bulan)->or_like('tb_izin_kerja.tanggal_akhir',$bulan);
 
-        $pegawais       = count($lists)>0 ? $this->Pegawai_model->getPegawai() : array();
-        $tkss           = count($lists)>0 ? $this->Pegawai_model->getPegawaiTks() : array();
+            $this->db->join('tb_pegawai','tb_pegawai.id=tb_izin_kerja.pegawai_id')->join('tb_opd','tb_opd.id=tb_izin_kerja.opd_id');
+            $lists = $this->db->get('tb_izin_kerja')->result_array();
+        }
+        else
+        {
+            $this->db->select('tb_izin_kerja.*, tb_pegawai.nama as nama_pegawai, tb_opd.id as skpd_id, tb_opd.nama_opd as nama_skpd')->where('tb_izin_kerja.pegawai_id',$pegawai_id);
+            if(isset($bulan))
+                $this->db->like('tb_izin_kerja.tanggal_awal',$bulan)->or_like('tb_izin_kerja.tanggal_akhir',$bulan);
+
+            $this->db->join('tb_pegawai','tb_pegawai.id=tb_izin_kerja.pegawai_id')->join('tb_opd','tb_opd.id=tb_izin_kerja.opd_id');
+            $lists = $this->db->get('tb_izin_kerja')->result_array();
+        }
+
+        // $q = $this->db->last_query();;
 
         function getTanggal($tanggal, $tanggaldanwaktu=false){
             $totime = strtotime($tanggal);
@@ -824,26 +889,34 @@ class Apiabsen extends CI_Controller {
         $no         = 1;
         foreach ($lists as $ik) {
 
-            $d['izinkerja_id']      = $ik['izinkerja_id'];
+            $d['izinkerja_id']      = $ik['id'];
             $d['nama_pegawai']      = $ik['nama_pegawai'];
             $d['jenis_izin']        = $ik['jenis_izin'];
             $d['skpd_id']           = $ik['skpd_id'];
             $d['nama_skpd']         = $ik['nama_skpd'];
             $d['tanggal_awal']      = getTanggal($ik['tanggal_awal']);
             $d['tanggal_akhir']     = getTanggal($ik['tanggal_akhir']);
-            $d['lampiran']          = $ik['file_izin'];
+            $d['lampiran']          = base_url().$ik['file_izin'];
             $d['status']            = ($ik['status']==null ? 'Menunggu' : ($ik['status']==1 ? 'Disetujui' : 'Ditolak'));
             if($is_bawahan=="bawahan") { 
                 $d['access_key']        = $ik['access_key'];
             }
-            $d['aproved_by_nama']   = $ik['aproved_by_nama'];
-            $d['aproved_at']        = $ik['aproved_at'];
+            if($ik['aproved_by'])
+            {
+                $approved = $this->db->where('id',$ik['aproved_by'])->get('tb_pegawai')->row();
+                $d['aproved_by_nama']   = $approved->nama;
+            }
+            else
+                $d['aproved_by_nama']   = '';
+            
+            $d['aproved_at']        = '';
             $d['dibuat_pada']       = getTanggal($ik['created_at'], true);
             $datas[]                = $d; 
         }
 
         echo json_encode([
 				"status"            => "berhasil",
+                // "query" => $q,
 				"data"              => $datas
 			]);
         return;
@@ -923,17 +996,18 @@ class Apiabsen extends CI_Controller {
             return;
         }
         extract($_POST);
+        $pegawai = $this->db->where('id',$pegawai_id)->get('tb_pegawai')->row();
 
         if($_FILES['lampiran']['name']){
             $data       = file_get_contents($_FILES['lampiran']['tmp_name']);
             $fileData   = $data;
-            $fileName   = 'izin_kerja/'.$_POST['pegawai_id'].'-'.time()."_".$_FILES['lampiran']['name'];
-        }else if(isset($_POST['file_izin']) && $_POST['file_izin']){
-            $img        = $_POST['file_izin'];
+            $fileName   = 'izin_kerja/'.$pegawai_id.'-'.time()."_".$_FILES['lampiran']['name'];
+        }else if(isset($file_izin) && $file_izin){
+            $img        = $file_izin;
             $img        = str_replace('data:image/jpeg;base64,', '', $img);
             $img        = str_replace(' ', '+', $img);
             $fileData   = base64_decode($img);
-            $fileName   = 'izin_kerja/'.$_POST['pegawai_id'].'-'.time().".jpg";
+            $fileName   = 'izin_kerja/'.$pegawai_id.'-'.time().".jpg";
         }
         
         file_put_contents($fileName, $fileData);
@@ -946,26 +1020,15 @@ class Apiabsen extends CI_Controller {
             return;
         }
 
-        $dataMeta = [
-            "tanggal_awal"  => date("Y-m-d", strtotime($this->input->post('tanggal_awal', true))),
-            "tanggal_akhir" => $_POST['tanggal_akhir'] == "" ? date("Y-m-d", strtotime($this->input->post('tanggal_awal', true))) : date("Y-m-d", strtotime($this->input->post('tanggal_akhir', true))),
-            "jenis_izin"    => $jenis_izin,
-            "file_izin"     => $fileName,
-            "user_id"       => $pegawai_id
-        ];
-        $this->db->insert('tb_izin_kerja_meta', $dataMeta);
-        $meta_id = $this->db->insert_id();
-
         $access_key         = rand(90000,99999)."-".substr(md5(time()), 0, 7);
-
         $data = [
-            "meta_id"       => $meta_id,
-            "pegawai_id"    => $pegawai_id,
-            "jenis_pegawai" => $jenis_pegawai,
-            "nama_pegawai"  => $nama_pegawai,
-            "skpd_id"       => $skpd_id,
-            "nama_skpd"     => $nama_skpd,
-            "access_key"    => $access_key, 
+            "pegawai_id"   => $pegawai_id,
+            "opd_id"       => $pegawai->opd_id,
+            "tanggal_awal" => $tanggal_awal,
+            "tanggal_akhir" => $tanggal_akhir,
+            "jenis_izin" => $jenis_izin,
+            "file_izin" => $fileName,
+            "access_key" => $access_key,
         ];
         $this->db->insert('tb_izin_kerja', $data);
 
@@ -1001,6 +1064,7 @@ class Apiabsen extends CI_Controller {
             $_POST['user_key'] != "absensiAPI" ||
             $_POST['pass_key'] != "12345654321" ||
             !isset($_POST['izinkerja_id']) ||
+            !isset($_POST['pegawai_id']) ||
             !isset($_POST['accesskey']) 
         ) {
             echo json_encode([
@@ -1009,52 +1073,17 @@ class Apiabsen extends CI_Controller {
             ]);
             return;
         }
-		extract($_POST);
-		$id = $izinkerja_id;
+        extract($_POST);
+        $this->db->where('id',$izinkerja_id)->where('access_key',$accesskey)->update('tb_izin_kerja',[
+            'status' => 1,
+            'aproved_by' => $pegawai_id
+        ]);
 
-        $izin_kerja = $this->db->
-                            select('tb_izin_kerja.*, tb_izin_kerja_meta.*')->
-                            where('tb_izin_kerja.access_key', $accesskey)->
-                            where('tb_izin_kerja_meta.id', $id)->
-                            where('status', null)->
-                            join('tb_izin_kerja_meta', 'tb_izin_kerja_meta.id=tb_izin_kerja.meta_id', 'left')->
-                            get('tb_izin_kerja')->row();
-
-        if(!$izin_kerja){
-            echo json_encode([
-                "status"    => "gagal",
-                "pesan"     => "Periksa izin kerja!",
-            ]);
-            return;
-        }
-
-        // $pegawais           = $this->Pegawai_model->getPegawai();
-        // $tkss               = $this->Pegawai_model->getPegawaiTks();
-        // $pegawai            = $this->generatePegawai($izin_kerja->pegawai_id, $izin_kerja->jenis_pegawai, $pegawais, $tkss);
-        // $this->Sms_model->send(isset($pegawai['no_hp']) ? $pegawai['no_hp'] : null, $pesan);
-
-
-        $pesan              = "[ABSENSI-NG] Permohonan izin ".$izin_kerja->jenis_izin." Anda telah disetujui.";
-        $this->Notifikasi_model->send(array(
-                      'user_id'         => $izin_kerja->pegawai_id,
-                      'jenis_user'      => $izin_kerja->jenis_pegawai,
-                      'user_name'       => $izin_kerja->nama_pegawai,
-                      'contents'        => $pesan,
-                ));
-
-        $atasan             = $this->Pegawai_model->getPegawaiAtasan($izin_kerja->pegawai_id, $izin_kerja->jenis_pegawai);
-        $this->db->where('meta_id', $id)->update('tb_izin_kerja', [
-                "status"            => 1,
-                "aproved_by"        => isset($atasan['pegawai_atasan_id']) ? $atasan['pegawai_atasan_id'] : null,
-                "aproved_by_nama"   => isset($atasan['nama_pegawai_atasan']) ? $atasan['nama_pegawai_atasan'] : "Unknown",
-                'aproved_at'        => date("Y-m-d H:i:s")
-            ]);
-
-            echo json_encode([
-                "status"    => "berhasil",
-                "pesan"     => "Berhasil disetujui!",
-            ]);
-            return;
+        echo json_encode([
+            "status"    => "berhasil",
+            "pesan"     => "Berhasil disetujui!",
+        ]);
+        return;
     }
     public function tolakizinkerja(){
         if (
@@ -1063,6 +1092,7 @@ class Apiabsen extends CI_Controller {
             $_POST['user_key'] != "absensiAPI" ||
             $_POST['pass_key'] != "12345654321" ||
             !isset($_POST['izinkerja_id']) ||
+            !isset($_POST['pegawai_id']) ||
             !isset($_POST['accesskey']) 
         ) {
             echo json_encode([
@@ -1073,47 +1103,10 @@ class Apiabsen extends CI_Controller {
         }
 
 		extract($_POST);
-		$id = $izinkerja_id;
-
-        $izin_kerja = $this->db->
-                            select('tb_izin_kerja.*, tb_izin_kerja_meta.*')->
-                            where('tb_izin_kerja.access_key', $accesskey)->
-                            where('tb_izin_kerja_meta.id', $id)->
-                            where('status', null)->
-                            join('tb_izin_kerja_meta', 'tb_izin_kerja_meta.id=tb_izin_kerja.meta_id', 'left')->
-                            get('tb_izin_kerja')->row();
-
-        if(!$izin_kerja){
-            echo json_encode([
-                "status"    => "gagal",
-                "pesan"     => "Periksa izin kerja!",
-            ]);
-            return;
-        }
-
-        // $pegawais           = $this->Pegawai_model->getPegawai();
-        // $tkss               = $this->Pegawai_model->getPegawaiTks();
-        // $pegawai            = $this->generatePegawai($izin_kerja->pegawai_id, $izin_kerja->jenis_pegawai, $pegawais, $tkss);
-        // $this->Sms_model->send(isset($pegawai['no_hp']) ? $pegawai['no_hp'] : null, $pesan);
-
-
-
-        $pesan              = "[ABSENSI-NG] Permohonan izin ".$izin_kerja->jenis_izin." Anda telah ditolak.";
-        $this->Notifikasi_model->send(array(
-                      'user_id'         => $izin_kerja->pegawai_id,
-                      'jenis_user'      => $izin_kerja->jenis_pegawai,
-                      'user_name'       => $izin_kerja->nama_pegawai,
-                      'contents'        => $pesan,
-                ));
-
-
-        $atasan             = $this->Pegawai_model->getPegawaiAtasan($izin_kerja->pegawai_id, $izin_kerja->jenis_pegawai);
-        $this->db->where('meta_id', $id)->update('tb_izin_kerja', [
-                "status"            => 0,
-                "aproved_by"        => isset($atasan['pegawai_atasan_id']) ? $atasan['pegawai_atasan_id'] : null,
-                "aproved_by_nama"   => isset($atasan['nama_pegawai_atasan']) ? $atasan['nama_pegawai_atasan'] : "Unknown",
-                'aproved_at'        => date("Y-m-d H:i:s")
-            ]);
+		$this->db->where('id',$izinkerja_id)->where('access_key',$accesskey)->update('tb_izin_kerja',[
+            'status' => 0,
+            'aproved_by' => $pegawai_id
+        ]);
 
 		echo json_encode([
 			"status"    => "berhasil",

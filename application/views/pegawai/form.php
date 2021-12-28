@@ -26,13 +26,20 @@
                             </div>
                             <div class="form-group">
                                 <label for="">OPD</label>
-                                <select name="pegawai[opd_id]" class="form-control">
+                                <select name="pegawai[opd_id]" class="form-control" onchange="loadAtasan(this.value,false,false)">
                                     <option value="">- Pilih -</option>
                                     <?php foreach($opds as $opd): ?>
                                     <option value="<?=$opd->id?>" <?=isset($pegawai->opd_id) && $pegawai->opd_id==$opd->id ? "selected" : null;?>><?=$opd->nama_opd?></option>
                                     <?php endforeach ?>
                                 </select>
                                 <?= form_error('pegawai[jenis_pegawai]', '<small class="text-danger pl-2">', '</small>'); ?>
+                            </div>
+                            <div class="form-group">
+                                <label for="">Atasan</label>
+                                <select name="atasan[pegawai_id]" id="atasan" class="form-control">
+                                    <option value="">- Pilih -</option>
+                                </select>
+                                <?= form_error('atasan[pegawai_id]', '<small class="text-danger pl-2">', '</small>'); ?>
                             </div>
                             <div class="form-group">
                                 <label for="">Jenis Pegawai</label>
@@ -71,7 +78,7 @@
                                 <div class="d-flex">
                                     <button type="button" disabled class="btn btn-warning btn-dsb" onclick="document.querySelector('#foto_pegawai').click()"><i class="ti ti-upload"></i> Upload Foto</button>
                                 </div>
-                                <img src="" alt="" width="150px" id="pegawai_img">
+                                <img src="<?=isset($pegawai->foto)?$pegawai->foto:''?>" alt="" width="150px" id="pegawai_img">
                                 <?= form_error('pegawai[foto]', '<small class="text-danger pl-2">', '</small>'); ?>
                                 <input type="file" class="form-control" id="foto_pegawai" name="pegawai[foto]" style="opacity:0;height:0px;overflow:hidden;padding:0;margin:0;" onchange="loadFoto(this)">
                             </div>
@@ -129,4 +136,23 @@ async function loadFoto(f)
         document.querySelector('input[name=detection]').value = JSON.stringify(detection)
     }
 }
+function loadAtasan(opd_id, selected_id = false, not_id = false)
+{
+    fetch('<?=base_url('pegawai/getPegawaiByOpd')?>/'+opd_id)
+    .then(res => res.json())
+    .then(res => {
+        var data = res.data
+        var opt = '<option value="">- Pilih -</option>'
+        for(i=0;i<data.length;i++)
+        {
+            if(not_id && data[i].id == not_id) continue
+            var selected = selected_id && data[i].id == selected_id
+            opt += '<option value="'+data[i].id+'" '+(selected?'selected=""':'')+'>'+data[i].nama+'</option>'
+        }
+        document.querySelector('#atasan').innerHTML = opt
+    })
+}
+<?php if(isset($pegawai->username)): ?>
+loadAtasan(<?=$pegawai->opd_id?>,<?=$pegawai->pegawai_atasan_id??0?>,<?=$pegawai->id?>);
+<?php endif ?>
 </script>

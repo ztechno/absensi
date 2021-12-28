@@ -31,6 +31,17 @@ class Pegawai extends CI_Controller {
         echo json_encode(['data'=>$results]);
         return;
     }
+
+    function getPegawaiByOpd($id)
+    {
+        $this->db->where('opd_id',$id);
+        $pegawai = $this->db->select('tb_pegawai.id, tb_pegawai.nama,tb_pegawai.nip,tb_pegawai.jabatan,tb_opd.nama_opd')
+                    ->join('tb_opd','tb_opd.id=tb_pegawai.opd_id')
+                    ->get('tb_pegawai')
+                    ->result_array();
+        echo json_encode(['data'=>$pegawai]);
+        return;
+    }
     
     function index()
     {
@@ -67,6 +78,11 @@ class Pegawai extends CI_Controller {
 
             $_POST['pegawai']['user_id'] = $user_id;
             $this->db->insert('tb_pegawai',$_POST['pegawai']);
+            $pegawai_id = $this->db->insert_id();
+            $this->db->insert('tb_pegawai_atasan',[
+                'pegawai_id'=>$pegawai_id,
+                'pegawai_atasan_id'=>$_POST['atasan']['pegawai_id']
+            ]);
             $this->db->insert('tb_user_roles',[
                 'user_id' => $user_id,
                 'role_id' => 3, // pegawai (get from tb_roles)
@@ -101,7 +117,7 @@ class Pegawai extends CI_Controller {
     function edit($id)
     {
 
-        $pegawai = $this->db->select('tb_pegawai.*, tb_users.*, tb_pegawai.id')->where('tb_pegawai.id', $id)->join('tb_users', 'tb_users.id=tb_pegawai.user_id', 'left')->get('tb_pegawai')->row();
+        $pegawai = $this->db->select('tb_pegawai.*, tb_users.*, tb_pegawai.id, tb_pegawai_atasan.pegawai_atasan_id')->where('tb_pegawai.id', $id)->join('tb_users', 'tb_users.id=tb_pegawai.user_id', 'left')->join('tb_pegawai_atasan', 'tb_pegawai_atasan.pegawai_id=tb_pegawai.id', 'left')->get('tb_pegawai')->row();
         if(!$pegawai) redirect('pegawai');
         if(isset($_POST['pegawai']))
         {
@@ -114,13 +130,19 @@ class Pegawai extends CI_Controller {
             }
             $this->db->where('id', $pegawai->user_id)->update('tb_users',$_POST['user']);
 
-            $pic  = $_FILES['pegawai']; //['name']['foto'];
-            $ext  = pathinfo($pic['name']['foto'], PATHINFO_EXTENSION);
-            $name = strtotime('now').'.'.$ext;
-            $file = 'foto/'.$name;
-            copy($pic['tmp_name']['foto'],$file);
-            $_POST['pegawai']['foto'] = $file;
+            if(!empty($_FILES['pegawai']['name']['foto']))
+            {
+                $pic  = $_FILES['pegawai']; //['name']['foto'];
+                $ext  = pathinfo($pic['name']['foto'], PATHINFO_EXTENSION);
+                $name = strtotime('now').'.'.$ext;
+                $file = 'foto/'.$name;
+                copy($pic['tmp_name']['foto'],$file);
+                $_POST['pegawai']['foto'] = $file;
+            }
             $this->db->where('id', $id)->update('tb_pegawai',$_POST['pegawai']);
+            $this->db->where('pegawai_id', $id)->update('tb_pegawai_atasan',[
+                'pegawai_atasan_id'=>$_POST['atasan']['pegawai_id']
+            ]);
 
             if(!empty($_POST['detection']))
             {

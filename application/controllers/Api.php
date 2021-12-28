@@ -165,8 +165,7 @@ class Api extends CI_Controller {
     }
 
     public function cekabsenupacara(){
-        $ABSENSI    = $this->load->database('dbabsensi', TRUE);
-        $upacara    = $ABSENSI->where('tanggal', date('Y-m-d'))->where('kategori', 'upacara')->get('tb_upacara_libur')->row();
+        $upacara    = $this->db->where('tanggal', date('Y-m-d'))->where('kategori', 'upacara')->get('tb_upacara_libur')->row();
         if($upacara){
             echo json_encode([
                 'status'    => 'berhasil',
