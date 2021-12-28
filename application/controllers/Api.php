@@ -502,10 +502,10 @@ class Api extends CI_Controller {
 
                 $coors = [];
                 if(!empty($koordinat_opd))
-                    $coors[] = ['lat' => (float) $koordinat_opd->latitude,'lng' => (float) $koordinat_opd->longitude,'radius'=>(float) $koordinat_opd->radius];
+                    $coors[] = ['latitude' => (float) $koordinat_opd->latitude,'longitude' => (float) $koordinat_opd->longitude,'radius'=>(float) $koordinat_opd->radius];
 
                 foreach($koordinat_tambahan as $c)
-                    $coors[] = ['lat' => (float) $c->latitude,'lng' => (float) $c->longitude,'radius'=>(float) $c->radius];
+                    $coors[] = ['latitude' => (float) $c->latitude,'longitude' => (float) $c->longitude,'radius'=>(float) $c->radius];
 
                 $user['absensi_variables'] = [
                     'kordinat_bebas' => null,
