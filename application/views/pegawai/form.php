@@ -83,11 +83,6 @@
                                 <input type="file" class="form-control" id="foto_pegawai" name="pegawai[foto]" style="opacity:0;height:0px;overflow:hidden;padding:0;margin:0;" onchange="loadFoto(this)">
                             </div>
                             <div class="form-group">
-                                <label for="">Username</label>
-                                <input type="text" class="form-control" placeholder="Masukan Username" value="<?=isset($pegawai->username) ? $pegawai->username : null;?>" name="user[username]">
-                                <?= form_error('user[username]', '<small class="text-danger pl-2">', '</small>'); ?>
-                            </div>
-                            <div class="form-group">
                                 <label for="">Password</label>
                                 <input type="password" class="form-control" placeholder="Masukan Password" name="user[password]">
                                 <?= form_error('user[password]', '<small class="text-danger pl-2">', '</small>'); ?>
