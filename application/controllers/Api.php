@@ -501,7 +501,7 @@ class Api extends CI_Controller {
                 $koordinat_tambahan = $this->db->where('skpd_id',$opd->id)->get('tb_kordinat_tambahan')->row();
 
                 $coors = [];
-                if($kordinat_opd)
+                if($koordinat_opd)
                     $coors[] = ['lat' => $koordinat_opd->latitude,'lng' => $koordinat_opd->longitude,'radius'=>$koordinat_opd->radius];
 
                 foreach($koordinat_tambahan as $c)
