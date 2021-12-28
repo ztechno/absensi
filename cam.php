@@ -103,7 +103,7 @@ video.addEventListener('play', () => {
                         body:formData
                     })
                     var res = await req.json()
-                    document.getElementById('result').innerHTML = res.msg
+                    document.getElementById('result').innerHTML = res.message
                     if(res.status == 'success')
                     {
                         alert('Absen Berhasil')
