@@ -91,7 +91,7 @@ class Pegawai extends CI_Controller {
             if(!empty($_POST['detection']))
             {
                 $detection = 'var employee_sample='.$_POST['detection'];
-                file_put_contents('facesamples/sample-'.$user_id.'.js',$detection);
+                file_put_contents('facesamples/sample-'.$pegawai_id.'.js',$detection);
             }
 
             $this->session->set_flashdata('pesan', '
@@ -147,7 +147,7 @@ class Pegawai extends CI_Controller {
             if(!empty($_POST['detection']))
             {
                 $detection = 'var employee_sample='.$_POST['detection'];
-                file_put_contents('facesamples/sample-'.$user_id.'.js',$detection);
+                file_put_contents('facesamples/sample-'.$pegawai_id.'.js',$detection);
             }
 
             $this->session->set_flashdata('pesan', '
