@@ -497,8 +497,8 @@ class Api extends CI_Controller {
                 $user['pegawai'] = (array) $pegawai;
                 $user['opd'] = (array) $opd;
 
-                $koordinat_opd = $this->db->where('skpd_id',$opd['id'])->get('tb_kordinat')->row();
-                $koordinat_tambahan = $this->db->where('skpd_id',$opd['id'])->get('tb_kordinat_tambahan')->row();
+                $koordinat_opd = $this->db->where('skpd_id',$opd->id)->get('tb_kordinat')->row();
+                $koordinat_tambahan = $this->db->where('skpd_id',$opd->id)->get('tb_kordinat_tambahan')->row();
 
                 $coors = [];
                 if($kordinat_opd)
