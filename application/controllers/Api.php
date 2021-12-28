@@ -501,11 +501,11 @@ class Api extends CI_Controller {
                 $koordinat_tambahan = $this->db->where('skpd_id',$opd->id)->get('tb_kordinat_tambahan')->result();
 
                 $coors = [];
-                if($koordinat_opd)
+                if(!empty($koordinat_opd))
                     $coors[] = ['lat' => $koordinat_opd->latitude,'lng' => $koordinat_opd->longitude,'radius'=>$koordinat_opd->radius];
 
                 foreach($koordinat_tambahan as $c)
-                    $coors[] = ['lat' => $c->latitude,'lng' => $c->longitude,'radius'=>$koordinat_opd->radius];
+                    $coors[] = ['lat' => $c->latitude,'lng' => $c->longitude,'radius'=>$c->radius];
 
                 $user['absensi_variables'] = [
                     'kordinat_bebas' => null,
