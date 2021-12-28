@@ -37,7 +37,7 @@
                             <th>Nama</th>
                             <th>NIP</th>
                             <th>Jabatan</th>
-                            <th>OPD</th>
+                            <th>Unit Kerja</th>
                             <th align="right">Action</th>
                         </tr>
                       </thead>
