@@ -6,7 +6,7 @@
         </div>
             <ul class="list-group list-group-flush">
                 <li class="list-group-item">
-                    <a href="<?=base_url('opd?token='.$_GET['token']);?>" class="btn btn-sm btn-danger"><em class="ti-arrow-left"></em> Kembali</a>
+                    <a href="<?=base_url('opd');?>" class="btn btn-sm btn-danger"><em class="ti-arrow-left"></em> Kembali</a>
                 </li>
             
                 <li class="list-group-item">

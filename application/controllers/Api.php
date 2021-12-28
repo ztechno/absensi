@@ -497,6 +497,21 @@ class Api extends CI_Controller {
                 $user['pegawai'] = (array) $pegawai;
                 $user['opd'] = (array) $opd;
 
+                $koordinat_opd = $this->db->where('skpd_id',$opd['id'])->get('tb_kordinat')->row();
+                $koordinat_tambahan = $this->db->where('skpd_id',$opd['id'])->get('tb_kordinat_tambahan')->row();
+
+                $coors = [];
+                if($kordinat_opd)
+                    $coors[] = ['lat' => $koordinat_opd->latitude,'lng' => $koordinat_opd->longitude,'radius'=>$koordinat_opd->radius];
+
+                foreach($koordinat_tambahan as $c)
+                    $coors[] = ['lat' => $c->latitude,'lng' => $c->longitude,'radius'=>$koordinat_opd->radius];
+
+                $user['absensi_variables'] = [
+                    'kordinat_bebas' => null,
+                    'kordinat_khusus' => $coors
+                ];
+
                 $key = "123aaaa321";
                 $data = JWT::encode($user, $key);
                 echo json_encode(["status"=>"berhasil","data"=>$data]);
