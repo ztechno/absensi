@@ -498,15 +498,14 @@ class Api extends CI_Controller {
                 $user['opd'] = (array) $opd;
 
                 $koordinat_opd = $this->db->where('skpd_id',$opd->id)->get('tb_kordinat')->row();
-                $user['kordinat_opd'] = (array) $koordinat_opd;
                 $koordinat_tambahan = $this->db->where('skpd_id',$opd->id)->get('tb_kordinat_tambahan')->result();
 
                 $coors = [];
                 if(!empty($koordinat_opd))
-                    $coors[] = ['lat' => $koordinat_opd->latitude,'lng' => $koordinat_opd->longitude,'radius'=>$koordinat_opd->radius];
+                    $coors[] = ['lat' => (float) $koordinat_opd->latitude,'lng' => (float) $koordinat_opd->longitude,'radius'=>(float) $koordinat_opd->radius];
 
                 foreach($koordinat_tambahan as $c)
-                    $coors[] = ['lat' => $c->latitude,'lng' => $c->longitude,'radius'=>$c->radius];
+                    $coors[] = ['lat' => (float) $c->latitude,'lng' => (float) $c->longitude,'radius'=>(float) $c->radius];
 
                 $user['absensi_variables'] = [
                     'kordinat_bebas' => null,
