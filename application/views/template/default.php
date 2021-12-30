@@ -259,6 +259,7 @@
                     <ul class="submenu-item">
                         <li class="nav-item"><a class="nav-link" href="<?=base_url('absensi')?>">Absensi</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?=base_url('izinkerja/dataizinkerja')?>">Izin Kerja</a></li>
+                        <li class="nav-item"><a class="nav-link" href="<?=base_url('absensi/rekapitulasi')?>">Rekapitulasi</a></li>
                     </ul>
                 </div>
             </li>

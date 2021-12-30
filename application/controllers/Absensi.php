@@ -37,6 +37,262 @@ class Absensi extends CI_Controller {
 		
 		$this->load->view('template/default', $data);
     }
+
+    public function rekapitulasi()
+    {
+        $data = [
+		    "title"             => "Rekapitulasi Absensi",
+			"page"				=> "absensi/rekapitulasi",
+			"javascript"		=> [
+				base_url("assets/vendors/datatables.net/jquery.dataTables.js"),
+				base_url("assets/vendors/datatables.net-bs4/dataTables.bootstrap4.js"),
+			],
+			"css"				=> [
+				base_url("assets/vendors/datatables.net-bs4/dataTables.bootstrap4.css"),
+			],
+		];
+		
+		$this->load->view('template/default', $data);
+    }
+
+    public function cetak($opd_id)
+    {
+        $opd     = $this->db->where('id',$opd_id)->get('tb_opd')->row();
+        $pegawai = $this->db->where('opd_id',$opd_id)->get('tb_pegawai')->result();
+        $kepala  = $this->db->where('opd_id',$opd_id)->where('kepala',1)->get('tb_pegawai')->row();
+            
+        $from = $_GET['from'] . " 00:00:00";
+        $from = date_create($from);
+
+        $to   = $_GET['to'] . " 23:59:59";
+        $to   = date_create($to);
+        
+        $diff = (array) date_diff($from,$to);
+        $interval = new DateInterval('P1D');
+        $daterange = new DatePeriod($from, $interval ,$to);
+
+        $bukan_hari_kerja = [];
+        $pegawai_date = [];
+        $pegawai_kerja = [];
+        $pegawai_total = [];
+        foreach($daterange as $d)
+        {
+            // check if date is sabtu or minggu
+            $tanggal = $d->format('Y-m-d');
+            $weekend = isWeekend($tanggal);
+            $libur = $this->db->where('tanggal', $tanggal)->get('tb_upacara_libur')->row();
+            // $datelists[$d->format('Y-m-d')] = $weekend || $libur ? 0 : 1;
+            foreach($pegawai as $p)
+            {
+                if(!isset($pegawai_kerja[$p->id])) $pegawai_kerja[$p->id] = 0;
+                if(!isset($pegawai_total[$p->id])) $pegawai_total[$p->id] = 0;
+
+                if($weekend)
+                {
+                    $bukan_hari_kerja[$tanggal] = 'Weekend'; 
+                    $pegawai_date[$p->id][$tanggal] = ['',0];
+                    continue;
+                }
+
+                if($libur)
+                {
+                    if($libur->kategori == 'Libur')
+                    {
+                        $bukan_hari_kerja[$tanggal] = $libur->nama_hari;
+                        $pegawai_date[$p->id][$tanggal] = ['',0];
+                        continue;
+                    }
+                }
+                $absensi = $this->db->where('pegawai_id',$p->id)->like('jam',$tanggal)->get('tb_absensi')->result();
+                $p_count = 0;
+                $percent_count = 0;
+                if(empty($absensi))
+                {
+                    // cek apakah ada izin atau sakit
+                    $tanggal_izin = $d->format('Y-m');
+                    $izin_kerja = $this->db->where('pegawai_id',$p->id)->like('tanggal_awal',$tanggal_izin)->or_like('tanggal_akhir',$tanggal_izin)->get('tb_izin_kerja')->result();
+                    $izin_rate = [
+                        'Izin Tugas Dinas' => 0,
+                        'Izin Datang Terlambat' => 0,
+                        'Izin Tidak Masuk' => 1,
+                        // 'Izin Cepat Pulang' => 1,
+                        'Sakit' => 0.5,
+                        'Cuti Besar' => 2.5,
+                        'Cuti Keguguran' => 0,
+                        'Cuti Bersalin' => 0,
+                        'Cuti Tahunan' => 1.5,
+                        'Cuti Alasan Penting' => 0
+                    ];
+                    $izin_key = '';
+                    $izin_multiply = 1;
+                    foreach($izin_kerja as $ik)
+                    {
+                        $tgl_awal  = strtotime($ik->tanggal_awal);
+                        $tgl_akhir = strtotime($ik->tanggal_akhir);
+                        $sekarang  = strtotime($tanggal);
+
+                        // cek if d is between tgl_awal and tgl_akhir
+                        if(!($sekarang >= $tgl_awal && $sekarang <= $tgl_akhir)) continue;
+
+                        if($ik->status == 1){
+                            $izin_key = $ik->status;
+                            if($ik->status == 'Sakit')
+                            {
+                                $last_day = strtotime($ik->tanggal_awal. " +3 days");
+                                $diff_sakit = (array) date_diff($ik->tanggal_awal,$ik->tanggal_akhir);
+                                if(!($diff_sakit['days'] > 3 && $sekarang > $last_day))
+                                    $izin_multiply = 0;
+                            }
+
+                            if($ik->status == 'Cuti Bersalin')
+                            {
+                                $last_day = strtotime($ik->tanggal_awal. " +5 days");
+                                $diff_sakit = (array) date_diff($ik->tanggal_awal,$ik->tanggal_akhir);
+                                if(!($diff_sakit['days'] > 5 && $sekarang > $last_day))
+                                    $izin_multiply = 0;
+                            }
+
+                            if($ik->status == 'Cuti Alasan Penting')
+                            {
+                                $diff_sakit = (array) date_diff($ik->tanggal_awal,$ik->tanggal_akhir);
+                                if($diff_sakit['days'] < 10)
+                                    $izin_rate['Cuti Alasan Penting'] = 1.5;
+                                elseif($diff_sakit['days'] < 20)
+                                    $izin_rate['Cuti Alasan Penting'] = 2;
+                                elseif($diff_sakit['days'] < 30)
+                                    $izin_rate['Cuti Alasan Penting'] = 2.5;
+                            }
+                            break;
+                        }
+                    }
+
+                    if($izin_key)
+                    {
+                        $pegawai_date[$p->id][$tanggal] = ['',$izin_rate[$izin_key]*$izin_multiply];
+                        continue;
+                    }
+
+                    // jika tanpa keterangan
+                    $pegawai_date[$p->id][$tanggal] = ['1p',3];
+                    $pegawai_total[$p->id] += 3;
+                    continue;
+                }
+
+                $is_masuk  = false;
+                $is_pulang = false;
+                $is_upacara = false;
+                foreach($absensi as $abs)
+                {
+                    if($abs->jenis_absen == 'Absen Masuk')
+                        $is_masuk = $abs->jam;
+
+                    if($abs->jenis_absen == 'Absen Pulang')
+                        $is_pulang = $abs->jam;
+
+                    if($abs->jenis_absen == 'Absen Upacara')
+                        $is_upacara = $abs->jam;
+                }
+
+                $jamKerjaPegawai = $this->db->where('pegawai_id',$p->id)->where('tanggal',$tanggal)->get('tb_jam_kerja_pegawai')->row();
+                if(empty($jamKerjaPegawai))
+                {
+                    // get from default jam kerja
+                    $jamKerjaPegawai = $this->db->where('is_default',1)->get('tb_jam_kerja')->row();
+                    $jamKerjaPegawai = $this->db->where('jam_kerja_id',$jamKerjaPegawai->id)->where('hari',$d->format('N'))->get('tb_jam_kerja_meta')->row();
+                }
+
+
+                if($libur->kategori == 'Upacara' && !$is_upacara)
+                {
+                    $p_count++;
+                    $percent_count += 2;
+                }
+
+                // if masuk telat
+                if($is_masuk)
+                {
+                    $pegawai_kerja[$p->id]++;
+                    if((date('H',strtotime($is_masuk)) >= 9 || date('H',strtotime($is_masuk)) <= 10))
+                    {
+                        $p_count++;
+                        $percent_count += 2;
+                    }
+                    elseif(date('H',strtotime($is_masuk)) > 10)
+                    {
+                        $p_count++;
+                        $percent_count += 3;
+                    }
+                }
+                
+                // if pulang telat
+                if($is_pulang)
+                {
+                    $jam_pulang   = strtotime($is_pulang);
+                    $harus_pulang = strtotime($jamKerjaPegawai->jam_awal_pulang);
+                    $selisih     = round(($harus_pulang - $jam_pulang) / 60,2);
+                    if($selisih > 0)
+                    {
+                        $izin_kerja = $this->db->where('pegawai_id',$p->id)->where('tanggal_awal',$tanggal)->where('jenis_izin','Izin Cepat Pulang')->where('status',1)->get('tb_izin_kerja')->num_rows();
+                        if($izin_kerja)
+                        {
+                            $p_count++;
+                            $percent_count += 1;
+                        }
+                        else
+                        {
+
+                            if($selisih >= 1 || $selisih <= 30)
+                            {
+                                $p_count++;
+                                $percent_count += 0.5;
+                            }
+                            elseif($selisih >= 31 || $selisih <= 60)
+                            {
+                                $p_count++;
+                                $percent_count += 1;
+                            }
+                            elseif($selisih >= 61 || $selisih <= 90)
+                            {
+                                $p_count++;
+                                $percent_count += 1.5;
+                            }
+                            elseif($selisih >= 91 || $selisih <= 120)
+                            {
+                                $p_count++;
+                                $percent_count += 2;
+                            }
+                            elseif($selisih > 120)
+                            {
+                                $p_count++;
+                                $percent_count += 3;
+                            }
+                        }
+                    }
+                }
+
+                $pegawai_date[$p->id][$tanggal] = [$p_count.'p',$percent_count];
+                $pegawai_total[$p->id] += $percent_count;
+            }
+        }
+
+        $jumlah_hari_kerja = ($diff['days']+1) - count($bukan_hari_kerja);
+
+        $data = [
+		    "opd"       => $opd,
+            "pegawai"   => $pegawai,
+            "pegawai_date"   => $pegawai_date,
+            "pegawai_kerja"  => $pegawai_kerja,
+            "pegawai_total"  => $pegawai_total,
+            "kepala"    => $kepala,
+            "daterange" => $daterange,
+            "datelists" => $datelists,
+            "diffdays"  => $diff['days'],
+            "jumlah_hari_kerja"  => $jumlah_hari_kerja,
+            "bukan_hari_kerja"  => $bukan_hari_kerja,
+		];
+		
+		$this->load->view('absensi/cetak-rekapitulasi', $data);
+    }
     
     public function foto()
     {
@@ -492,23 +748,23 @@ class Absensi extends CI_Controller {
             
             foreach($absensi as $abs){
                 if($abs->is_susulan=='Ya' && $abs->jenis_absen=='Absen Masuk'){
-                    $jam_masuk              = "<span class='mb-show'>Masuk</span><br><a target='_blank' href='https://storage.googleapis.com/file-absensi/".$abs->file_absensi."'>Susulan</a>";
+                    $jam_masuk              = "<span class='mb-show'>Masuk</span><br><a target='_blank' href='".base_url($abs->file_absensi)."'>Susulan</a>";
                     continue;
                     
                 }else if($abs->is_susulan=='Ya' && $abs->jenis_absen=='Absen Istirahat'){
-                    $jam_istirahat_masuk    = "<span class='mb-show'>Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/".$abs->file_absensi."'>Susulan</a>";
+                    $jam_istirahat_masuk    = "<span class='mb-show'>Istirahat</span><a target='_blank' href='".base_url($abs->file_absensi)."'>Susulan</a>";
                     continue;
 
                 }else if($abs->is_susulan=='Ya' && $abs->jenis_absen=='Absen Selesai Istirahat'){
-                    $jam_istirahat_keluar = "<span class='mb-show'>Selesai Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/".$abs->file_absensi."'>Susulan</a>";
+                    $jam_istirahat_keluar = "<span class='mb-show'>Selesai Istirahat</span><a target='_blank' href='".base_url($abs->file_absensi)."'>Susulan</a>";
                     continue;
 
                 }else if($abs->is_susulan=='Ya' && $abs->jenis_absen=='Absen Pulang'){
-                    $jam_pulang             = "<span class='mb-show'>Pulang</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/".$abs->file_absensi."'>Susulan</a>";
+                    $jam_pulang             = "<span class='mb-show'>Pulang</span><a target='_blank' href='".base_url($abs->file_absensi)."'>Susulan</a>";
                     continue;
 
                 }else if($abs->is_susulan=='Ya' && $abs->jenis_absen=='Absen Upacara'){
-                    $jam_masuk             = "<span class='mb-show'>Upacara</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/".$abs->file_absensi."'>Susulan</a>";
+                    $jam_masuk             = "<span class='mb-show'>Upacara</span><a target='_blank' href='".base_url($abs->file_absensi)."'>Susulan</a>";
                     continue;
 
                 }
@@ -531,10 +787,10 @@ class Absensi extends CI_Controller {
                 $isAbsenManualIstirahat         = !$jam_istirahat_masuk && $abs->jenis_absen=="Absen Istirahat" && $abs->keterangan ? "<small>AMI (".$abs->keterangan.")" : null;
                 $isAbsenManualSelesiIstirahat   = !$jam_istirahat_keluar && $abs->jenis_absen=="Absen Selesai" && $abs->keterangan ? "<small>AMSI (".$abs->keterangan.")" : null;
 
-                $jam_masuk              = isset($jam['jam_masuk']) && (!$jam_masuk || $jam['jam_masuk']=="Upacara" ||  $jam['jam_masuk']=="Senam") ? "<span class='mb-show'>Masuk</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_masuk']."</a>".$label : $jam_masuk;
-                $jam_istirahat_masuk    = isset($jam['jam_istirahat']) && !$jam_istirahat_masuk ? "<span class='mb-show'>Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_istirahat']."</a>".$label : $jam_istirahat_masuk;
-                $jam_istirahat_keluar   = isset($jam['jam_selesai_istirahat']) && !$jam_istirahat_keluar ? "<span class='mb-show'>Selesai Istirahat</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_selesai_istirahat']."</a>".$label : $jam_istirahat_keluar;
-                $jam_pulang             = isset($jam['jam_pulang']) && !$jam_pulang ? "<span class='mb-show'>Pulang</span><a target='_blank' href='https://storage.googleapis.com/file-absensi/file_absensi/". $abs->file_absensi . "/" . $abs->jam.".png'>".$jam['jam_pulang']."</a>".$label : $jam_pulang;
+                $jam_masuk              = isset($jam['jam_masuk']) && (!$jam_masuk || $jam['jam_masuk']=="Upacara" ||  $jam['jam_masuk']=="Senam") ? "<span class='mb-show'>Masuk</span><a target='_blank' href='".base_url($abs->file_absensi)."'>".$jam['jam_masuk']."</a>".$label : $jam_masuk;
+                $jam_istirahat_masuk    = isset($jam['jam_istirahat']) && !$jam_istirahat_masuk ? "<span class='mb-show'>Istirahat</span><a target='_blank' href='".base_url($abs->file_absensi)."'>".$jam['jam_istirahat']."</a>".$label : $jam_istirahat_masuk;
+                $jam_istirahat_keluar   = isset($jam['jam_selesai_istirahat']) && !$jam_istirahat_keluar ? "<span class='mb-show'>Selesai Istirahat</span><a target='_blank' href='".base_url($abs->file_absensi)."'>".$jam['jam_selesai_istirahat']."</a>".$label : $jam_istirahat_keluar;
+                $jam_pulang             = isset($jam['jam_pulang']) && !$jam_pulang ? "<span class='mb-show'>Pulang</span><a target='_blank' href='".base_url($abs->file_absensi)."'>".$jam['jam_pulang']."</a>".$label : $jam_pulang;
             }
   
             $nama = "<div class='tb-wrap'>".$pg->nama."</div>"
