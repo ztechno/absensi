@@ -70,6 +70,7 @@ class Pegawai extends CI_Controller {
             $_POST['pegawai']['foto'] = $file;
 
             $_POST['user']['nama'] = $_POST['pegawai']['nama'];
+	    $_POST['user']['username'] = $_POST['pegawai']['nip'];
             $_POST['user']['password'] = password_hash($_POST['user']['password'],PASSWORD_DEFAULT);
             $_POST['user']['is_active'] = 'Ya';
 
@@ -122,6 +123,7 @@ class Pegawai extends CI_Controller {
         if(isset($_POST['pegawai']))
         {
             $_POST['user']['nama'] = $_POST['pegawai']['nama'];
+	    $_POST['user']['username'] = $_POST['pegawai']['nip'];
             if(isset($_POST['user']['password']) && $_POST['user']['password']) 
             {
                 $_POST['user']['password'] = password_hash($_POST['user']['password'],PASSWORD_DEFAULT);
