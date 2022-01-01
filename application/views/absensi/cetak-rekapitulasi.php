@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cetak Rekapitulasi <?=$opd->nama_opd?></title>
     <style>
+    body {
+        font-size:12px;
+    }
     h2 {
         margin:0;
         padding:0;

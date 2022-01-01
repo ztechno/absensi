@@ -55,8 +55,50 @@ class Absensi extends CI_Controller {
 		$this->load->view('template/default', $data);
     }
 
+    // pelanggaran mapping
+    /*
+    1p = TIDAK MASUK KERJA SEHARI PENUH
+    3p = TERLAMBAT MASUK KERJA (SETELAH JAM 09.00-10.00 WIB)
+    4p = TERLAMBAT MASUK KERJA SETELAH JAM 10
+    5p = PULANG KERJA SEBELUM WAKTUNYA 1 s/d 30 MENIT
+    6p = PULANG KERJA SEBELUM WAKTUNYA 31 s/d 60 MENIT
+    7p = PULANG KERJA SEBELUM WAKTUNYA 61 s/d 90 MENIT
+    8p = PULANG KERJA SEBELUM WAKTUNYA 91 s/d 120 MENIT
+    9p = PULANG KERJA SEBELUM WAKTUNYA DIATAS 120 MENIT
+    10p = TIDAK MENGIKUTI APEL SENIN/UPACARA HARI BESAR
+    13p = IZIN TIDAK MASUK KANTOR SEHARI PENUH KARENA TERKAIT MASALAH SOSIAL YANG MENDESAK DAN DARURAT MAKSIMAL EMPAT KALI DALAM SATU BULAN
+    14p = IZIN CEPAT PULANG KARENA TERKAIT MASALAH SOSIAL YANG MENDESAK DAN DARURAT DILAMPIRKAN SURAT IZIN DARI ATASAN MAKSIMAL EMPAT KALI DALAM SATU BULAN
+    16p = SAKIT LEBIH DARI 3 HARI DILENGKAPI DENGAN SURAT KETERANGAN DOKTER SAMPAI DENGAN MAKSIMAL SATU BULAN HARI KERJA
+    20p = CUTI BERSALIN >5 HARI MAKA PADA HARI BERIKUTNYA DIKENAKAN PENGURANGAN TUNJANGAN
+    21p = CUTI TAHUNAN 1 s/d 12 HAR
+    22p = CUTI ALASAN PENTING 1 s/d 10 HARI
+    23p = CUTI ALASAN PENTING 11 s/d 20 HARI
+    24p = CUTI ALASAN PENTING 21 s/d 30 HAR
+    25p = CUTI BESAR
+    */
+
     public function cetak($opd_id)
     {
+        $p_collections = [
+            "1p" => "TIDAK MASUK KERJA SEHARI PENUH",
+            "3p" => "TERLAMBAT MASUK KERJA (SETELAH JAM 09.00-10.00 WIB)",
+            "4p" => "TERLAMBAT MASUK KERJA SETELAH JAM 10",
+            "5p" => "PULANG KERJA SEBELUM WAKTUNYA 1 s/d 30 MENIT",
+            "6p" => "PULANG KERJA SEBELUM WAKTUNYA 31 s/d 60 MENIT",
+            "7p" => "PULANG KERJA SEBELUM WAKTUNYA 61 s/d 90 MENIT",
+            "8p" => "PULANG KERJA SEBELUM WAKTUNYA 91 s/d 120 MENIT",
+            "9p" => "PULANG KERJA SEBELUM WAKTUNYA DIATAS 120 MENIT",
+            "10p" => "TIDAK MENGIKUTI APEL SENIN/UPACARA HARI BESAR",
+            "13p" => "IZIN TIDAK MASUK KANTOR SEHARI PENUH KARENA TERKAIT MASALAH SOSIAL YANG MENDESAK DAN DARURAT MAKSIMAL EMPAT KALI DALAM SATU BULAN",
+            "14p" => "IZIN CEPAT PULANG KARENA TERKAIT MASALAH SOSIAL YANG MENDESAK DAN DARURAT DILAMPIRKAN SURAT IZIN DARI ATASAN MAKSIMAL EMPAT KALI DALAM SATU BULAN",
+            "16p" => "SAKIT LEBIH DARI 3 HARI DILENGKAPI DENGAN SURAT KETERANGAN DOKTER SAMPAI DENGAN MAKSIMAL SATU BULAN HARI KERJA",
+            "20p" => "CUTI BERSALIN >5 HARI MAKA PADA HARI BERIKUTNYA DIKENAKAN PENGURANGAN TUNJANGAN",
+            "21p" => "CUTI TAHUNAN 1 s/d 12 HAR",
+            "22p" => "CUTI ALASAN PENTING 1 s/d 10 HARI",
+            "23p" => "CUTI ALASAN PENTING 11 s/d 20 HARI",
+            "24p" => "CUTI ALASAN PENTING 21 s/d 30 HAR",
+            "25p" => "CUTI BESAR",
+        ];
         $opd     = $this->db->where('id',$opd_id)->get('tb_opd')->row();
         $pegawai = $this->db->where('opd_id',$opd_id)->get('tb_pegawai')->result();
         $kepala  = $this->db->where('opd_id',$opd_id)->where('kepala',1)->get('tb_pegawai')->row();
@@ -86,11 +128,12 @@ class Absensi extends CI_Controller {
             {
                 if(!isset($pegawai_kerja[$p->id])) $pegawai_kerja[$p->id] = 0;
                 if(!isset($pegawai_total[$p->id])) $pegawai_total[$p->id] = 0;
+                $p_code = "";
 
                 if($weekend)
                 {
                     $bukan_hari_kerja[$tanggal] = 'Weekend'; 
-                    $pegawai_date[$p->id][$tanggal] = ['',0];
+                    $pegawai_date[$p->id][$tanggal]['p0'] = 0;
                     continue;
                 }
 
@@ -99,7 +142,7 @@ class Absensi extends CI_Controller {
                     if($libur->kategori == 'Libur')
                     {
                         $bukan_hari_kerja[$tanggal] = $libur->nama_hari;
-                        $pegawai_date[$p->id][$tanggal] = ['',0];
+                        $pegawai_date[$p->id][$tanggal]['p0'] = 0;
                         continue;
                     }
                 }
@@ -142,6 +185,8 @@ class Absensi extends CI_Controller {
                                 $diff_sakit = (array) date_diff($ik->tanggal_awal,$ik->tanggal_akhir);
                                 if(!($diff_sakit['days'] > 3 && $sekarang > $last_day))
                                     $izin_multiply = 0;
+                                else
+                                    $p_code = "16p";
                             }
 
                             if($ik->status == 'Cuti Bersalin')
@@ -150,17 +195,28 @@ class Absensi extends CI_Controller {
                                 $diff_sakit = (array) date_diff($ik->tanggal_awal,$ik->tanggal_akhir);
                                 if(!($diff_sakit['days'] > 5 && $sekarang > $last_day))
                                     $izin_multiply = 0;
+                                else
+                                    $p_code = "20p";
                             }
 
                             if($ik->status == 'Cuti Alasan Penting')
                             {
                                 $diff_sakit = (array) date_diff($ik->tanggal_awal,$ik->tanggal_akhir);
                                 if($diff_sakit['days'] < 10)
+                                {
                                     $izin_rate['Cuti Alasan Penting'] = 1.5;
+                                    $p_code = "22p";
+                                }
                                 elseif($diff_sakit['days'] < 20)
+                                {
                                     $izin_rate['Cuti Alasan Penting'] = 2;
+                                    $p_code = "23p";
+                                }
                                 elseif($diff_sakit['days'] < 30)
+                                {
                                     $izin_rate['Cuti Alasan Penting'] = 2.5;
+                                    $p_code = "24p";
+                                }
                             }
                             break;
                         }
@@ -168,11 +224,13 @@ class Absensi extends CI_Controller {
 
                     if($izin_key)
                     {
-                        $pegawai_date[$p->id][$tanggal] = ['',$izin_rate[$izin_key]*$izin_multiply];
+                        $pegawai_date[$p->id][$tanggal] = [$p_code,$izin_rate[$izin_key]*$izin_multiply];
+                        $pegawai_total[$p->id] += $izin_rate[$izin_key]*$izin_multiply;
                         continue;
                     }
 
                     // jika tanpa keterangan
+                    // TIDAK MASUK KERJA SEHARI PENUH = 1p
                     $pegawai_date[$p->id][$tanggal] = ['1p',3];
                     $pegawai_total[$p->id] += 3;
                     continue;
@@ -204,8 +262,9 @@ class Absensi extends CI_Controller {
 
                 if($libur->kategori == 'Upacara' && !$is_upacara)
                 {
-                    $p_count++;
-                    $percent_count += 2;
+                    // $p_count++;
+                    // $percent_count += 2;
+                    $pegawai_date[$p->id][$tanggal]['10p'] = 2;
                 }
 
                 // if masuk telat
@@ -214,13 +273,15 @@ class Absensi extends CI_Controller {
                     $pegawai_kerja[$p->id]++;
                     if((date('H',strtotime($is_masuk)) >= 9 || date('H',strtotime($is_masuk)) <= 10))
                     {
-                        $p_count++;
-                        $percent_count += 2;
+                        $pegawai_date[$p->id][$tanggal]['3p'] = 2;
+                        // $p_count++;
+                        // $percent_count += 2;
                     }
                     elseif(date('H',strtotime($is_masuk)) > 10)
                     {
-                        $p_count++;
-                        $percent_count += 3;
+                        $pegawai_date[$p->id][$tanggal]['4p'] = 3;
+                        // $p_count++;
+                        // $percent_count += 3;
                     }
                 }
                 
@@ -235,43 +296,58 @@ class Absensi extends CI_Controller {
                         $izin_kerja = $this->db->where('pegawai_id',$p->id)->where('tanggal_awal',$tanggal)->where('jenis_izin','Izin Cepat Pulang')->where('status',1)->get('tb_izin_kerja')->num_rows();
                         if($izin_kerja)
                         {
-                            $p_count++;
-                            $percent_count += 1;
+                            $pegawai_date[$p->id][$tanggal]['14p'] = 1;
+                            // $p_count++;
+                            // $percent_count += 1;
                         }
                         else
                         {
 
                             if($selisih >= 1 || $selisih <= 30)
                             {
-                                $p_count++;
-                                $percent_count += 0.5;
+                                $pegawai_date[$p->id][$tanggal]['5p'] = 0.5;
+                                // $p_count++;
+                                // $percent_count += 0.5;
                             }
                             elseif($selisih >= 31 || $selisih <= 60)
                             {
-                                $p_count++;
-                                $percent_count += 1;
+                                $pegawai_date[$p->id][$tanggal]['6p'] = 1;
+                                // $p_count++;
+                                // $percent_count += 1;
                             }
                             elseif($selisih >= 61 || $selisih <= 90)
                             {
-                                $p_count++;
-                                $percent_count += 1.5;
+                                $pegawai_date[$p->id][$tanggal]['7p'] = 1.5;
+                                // $p_count++;
+                                // $percent_count += 1.5;
                             }
                             elseif($selisih >= 91 || $selisih <= 120)
                             {
-                                $p_count++;
-                                $percent_count += 2;
+                                $pegawai_date[$p->id][$tanggal]['8p'] = 2;
+                                // $p_count++;
+                                // $percent_count += 2;
                             }
                             elseif($selisih > 120)
                             {
-                                $p_count++;
-                                $percent_count += 3;
+                                $pegawai_date[$p->id][$tanggal]['9p'] = 3;
+                                // $p_count++;
+                                // $percent_count += 3;
                             }
                         }
                     }
                 }
 
-                $pegawai_date[$p->id][$tanggal] = [$p_count.'p',$percent_count];
-                $pegawai_total[$p->id] += $percent_count;
+                if(count($pegawai_date[$p->id][$tanggal]) > 1)
+                {
+                    // sort
+                    asort($pegawai_date[$p->id][$tanggal]);
+                }
+
+                $keys = array_keys($pegawai_date[$p->id][$tanggal]);
+                $key = $keys[0];
+
+                $pegawai_date[$p->id][$tanggal] = [$key,$pegawai_date[$p->id][$tanggal][$key]];
+                $pegawai_total[$p->id] += $pegawai_date[$p->id][$tanggal][$key];
             }
         }
 
