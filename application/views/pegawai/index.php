@@ -3,10 +3,18 @@
         <div class="card-header">
             <h3><?=$title;?></h3> 
         </div>
-        <div class="col-3 mt-3">
+        <div class="col-12 mt-3">
             
         <a href="<?= base_url("pegawai/tambah") ?>" class="btn btn-sm btn-primary"><em class="ti-plus"></em> 
            Tambah Pegawai
+        </a>
+
+        <a href="<?= base_url("pegawai/import") ?>" class="btn btn-sm btn-success"><em class="ti-upload"></em> 
+           Import Pegawai
+        </a>
+
+        <a href="<?= base_url("format/f01.xlsx") ?>" class="btn btn-sm btn-success"><em class="ti-download"></em> 
+           Download Format Import
         </a>
     
         </div>

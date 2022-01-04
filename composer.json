@@ -12,7 +12,8 @@
 	},
 	"require": {
 		"php": ">=5.3.7",
-		"google/cloud-storage": "^1.25"
+		"google/cloud-storage": "^1.25",
+		"phpoffice/phpspreadsheet": "^1.20"
 
 	},
 	"suggest": {

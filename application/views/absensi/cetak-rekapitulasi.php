@@ -49,7 +49,7 @@
                 <td><?=$jumlah_hari_kerja?></td>
                 <td><?=$pegawai_kerja[$p->id]?></td>
                 <td><?=$pegawai_total[$p->id]?>%</td>
-                <td><?=60-$pegawai_total[$p->id]?>%</td>
+                <td><?=100-$pegawai_total[$p->id]?>%</td>
             </tr>
             <?php endforeach ?>
         </tbody>

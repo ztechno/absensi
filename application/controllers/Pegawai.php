@@ -70,7 +70,7 @@ class Pegawai extends CI_Controller {
             $_POST['pegawai']['foto'] = $file;
 
             $_POST['user']['nama'] = $_POST['pegawai']['nama'];
-	    $_POST['user']['username'] = $_POST['pegawai']['nip'];
+	        $_POST['user']['username'] = $_POST['pegawai']['nip'];
             $_POST['user']['password'] = password_hash($_POST['user']['password'],PASSWORD_DEFAULT);
             $_POST['user']['is_active'] = 'Ya';
 
@@ -192,5 +192,79 @@ class Pegawai extends CI_Controller {
         foreach($this->db->where('opd_id', $_POST['opd_id'])->get('tb_pegawai')->result() as $pegawai){
             echo '<option value="'.$pegawai->id.'">'.$pegawai->nama.'</option>';
         }
+    }
+    
+    public function import()
+    {
+        if(isset($_POST['import']))
+        {
+            $file = $_FILES['import']['name']['file'];
+            $pathinfo = pathinfo($_FILES["import"]["name"]['file']);
+            $extension = $pathinfo['extension'];
+            if($extension=='xlsx'){
+                $inputFileType = 'Xlsx';
+            }else{
+                $inputFileType = 'Xls';
+            }
+            $reader     = \PhpOffice\PhpSpreadsheet\IOFactory::createReader($inputFileType);
+             
+            $spreadsheet = $reader->load($_FILES['import']['tmp_name']['file']);
+            $worksheet   = $spreadsheet->getActiveSheet();
+            $highestRow  = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+            $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
+            for ($row = 2; $row <= $highestRow; $row++) {
+                $data = [
+
+                ];
+
+                $this->db->insert('tb_users',[
+                    'nama' => $worksheet->getCellByColumnAndRow(3, $row)->getValue(),
+                    'username' => $worksheet->getCellByColumnAndRow(2, $row)->getValue(),
+                    'password' => password_hash($worksheet->getCellByColumnAndRow(10, $row)->getValue(),PASSWORD_DEFAULT)
+                ]);
+                $user_id = $this->db->insert_id();
+
+                $this->db->insert('tb_pegawai',[
+                    'nama' => $worksheet->getCellByColumnAndRow(3, $row)->getValue(),
+                    'nip'  => $worksheet->getCellByColumnAndRow(2, $row)->getValue(),
+                    'opd_id' => $_POST['import']['opd_id'],
+                    'jabatan' => $worksheet->getCellByColumnAndRow(4, $row)->getValue(),
+                    'kepala' => $worksheet->getCellByColumnAndRow(6, $row)->getValue() == 'Ya' ? 1 : 0,
+                    'cpns' => $worksheet->getCellByColumnAndRow(7, $row)->getValue() == 'Ya' ? 1 : 0,
+                    'plt' => $worksheet->getCellByColumnAndRow(8, $row)->getValue() == 'Ya' ? 1 : 0,
+                    'kategori_pegawai' => $worksheet->getCellByColumnAndRow(5, $row)->getValue(),
+                    'bendahara' => $worksheet->getCellByColumnAndRow(9, $row)->getValue() == 'Ya' ? 1 : 0,
+                    'foto' => '',
+                    'user_id' => $user_id
+                ]);
+
+                $pegawai_id = $this->db->insert_id();
+                $this->db->insert('tb_pegawai_atasan',[
+                    'pegawai_id'=>$pegawai_id,
+                    'pegawai_atasan_id'=>$_POST['import']['pegawai_id']
+                ]);
+                $this->db->insert('tb_user_roles',[
+                    'user_id' => $user_id,
+                    'role_id' => 3, // pegawai (get from tb_roles)
+                ]);
+            }
+
+            $this->session->set_flashdata('pesan', '
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>Berhasil !</strong> Data Pegawai berhasil diubah
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            ');
+            redirect('pegawai');
+        }
+        $opds = $this->db->get('tb_opd')->result();
+        $this->load->view('template/default', [
+            'title'   => 'Import Pegawai',
+            'page'    => 'pegawai/import',
+            'opds'    => $opds
+        ]);
     }
 }
