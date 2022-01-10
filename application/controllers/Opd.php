@@ -42,7 +42,7 @@ class Opd extends CI_Controller {
             'id'                => $opd['id'],
             'nama_opd'          => $opd['nama_opd'],
             'singkatan'         => $opd['singkatan'],
-            'nama_kepala'       => $kepala ? $kepala['nama'] : '',
+            'nama_kepala'       => $kepala && isset($kepala['nama']) ? $kepala['nama'] : '',
             'jumlah_pegawai'    => $pegawai_tetap
         ]);
 
