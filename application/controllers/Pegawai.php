@@ -123,11 +123,12 @@ class Pegawai extends CI_Controller {
         if(isset($_POST['pegawai']))
         {
             $_POST['user']['nama'] = $_POST['pegawai']['nama'];
-	    $_POST['user']['username'] = $_POST['pegawai']['nip'];
-            if(isset($_POST['user']['password']) && $_POST['user']['password']) 
+	        $_POST['user']['username'] = $_POST['pegawai']['nip'];
+            if(isset($_POST['user']['password']) && !empty($_POST['user']['password'])) 
             {
                 $_POST['user']['password'] = password_hash($_POST['user']['password'],PASSWORD_DEFAULT);
-            }if(isset($_POST['user']['password'])){
+            }
+            if(isset($_POST['user']['password']) && empty($_POST['user']['password'])){
                 unset($_POST['user']['password']);
             }
             $this->db->where('id', $pegawai->user_id)->update('tb_users',$_POST['user']);
