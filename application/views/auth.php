@@ -30,12 +30,11 @@
     
     .login-18 .login-box-9 {
         margin: 0px !important;
-        border-radius: 10px;
         opacity: 3;
         text-align: center;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 1.2);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         background-size: cover;
-        background: rgba(0, 0, 0, 0.04) url('./assets/assets_login/img/bg5.jpg') top left repeat;
+        background: rgba(0, 0, 0, 0.04) url('./assets/images/bg-new.jpeg') top left repeat;
         background-size: cover;
         justify-content: center;
         align-items: center;

@@ -34,6 +34,11 @@
 
 <style>
     <?=isset($cssCode) ? $cssCode : null;?>
+
+    .horizontal-menu .top-navbar {
+      background: #558B2F;
+      animation: none;
+    }
 	button.dt-button{
 		border: 1px solid rgb(135 135 135 / 20%);
 		border-radius: 6px;
